@@ -1,0 +1,10 @@
+﻿@model Icklekwik.Server.ViewModels.Wiki.PageModel
+
+﻿@if (!Model.IsPartialView)
+ {
+     Layout = "_Layout.cshtml";
+ }
+
+<h1>Hello world!</h1>
+
+@Html.Raw(Model.Contents)
