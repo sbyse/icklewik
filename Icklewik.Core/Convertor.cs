@@ -1,5 +1,10 @@
 ﻿namespace Icklewik.Core
 {
+    /// <summary>
+    /// Converts the source file to a valid html file using the supplied dialogue
+    /// 
+    /// Convertor is expected to be thread-safe
+    /// </summary>
     public class Convertor
     {
         private IDialogue dialogueImplementation;
@@ -10,7 +15,7 @@
             FileExtension = fileExtension;
         }
 
-        public string FileExtension { get; set; }
+        public string FileExtension { get; private set; }
 
         public string FileSearchString
         {
@@ -20,9 +25,9 @@
             }
         }
 
-        public string Convert(string markdownText)
+        public string Convert(string sourceText)
         {
-            return dialogueImplementation.Convert(markdownText);
+            return dialogueImplementation.Convert(sourceText);
         }
     }
 }

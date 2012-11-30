@@ -12,58 +12,94 @@ namespace Icklewik.Core
 {
     public class WikiSite : IDisposable
     {
+        private static readonly TimeSpan FileSystemSampleTime = new TimeSpan(0, 0, 0, 0, 50);
+
+        private WikiConfig wikiConfig;
+
         private WikiModel model;
         private WikiGenerator generator;
         private FileSystemWatcher fileWatcher;
         private FileSystemWatcher directoryWatcher;
-        private EventLoopScheduler scheduler;
 
-        public WikiSite(string rootSourcePath, string rootWikiPath, Convertor sourceConvertor)
+        // we maintain two separate event loops to keep source and site 
+        // as decoupled as possible
+        private EventLoopScheduler modelBuilderScheduler;
+        private EventLoopScheduler siteGeneratorScheduler;
+
+        public WikiSite(WikiConfig config)
         {
-            model = new WikiModel(sourceConvertor.FileExtension);
+            wikiConfig = config;
 
-            generator = new WikiGenerator(rootSourcePath, rootWikiPath, sourceConvertor);
+            model = new WikiModel(wikiConfig.Convertor.FileExtension);
 
-            model.DirectoryAdded += (directory) => generator.CreateDirectory(directory);
-            model.DirectoryUpdated += (directory) => generator.UpdateDirectory(directory);
-            model.DirectoryDeleted += (directory) => generator.DeleteDirectory(directory);
-
-            model.PageAdded += (page) => generator.CreatePage(page);
-            model.PageUpdated += (page) => generator.UpdatePage(page);
-            model.PageDeleted += (page) => generator.DeletePage(page);
-
-            // initialise the model
-            model.Init(rootSourcePath, rootWikiPath, Directory.EnumerateFiles(rootSourcePath, sourceConvertor.FileSearchString, SearchOption.AllDirectories));
+            generator = new WikiGenerator(wikiConfig.Convertor);
 
             // now we create a file system watcher to make sure we stay in sync with future changes
             fileWatcher = new FileSystemWatcher();
-            fileWatcher.Path = rootSourcePath;
-            fileWatcher.Filter = sourceConvertor.FileSearchString;
+            fileWatcher.Path = wikiConfig.RootSourcePath;
+            fileWatcher.Filter = wikiConfig.Convertor.FileSearchString;
             fileWatcher.IncludeSubdirectories = true;
+            fileWatcher.InternalBufferSize = 32768;
 
             fileWatcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
 
             directoryWatcher = new FileSystemWatcher();
-            directoryWatcher.Path = rootSourcePath;
+            directoryWatcher.Path = wikiConfig.RootSourcePath;
             directoryWatcher.IncludeSubdirectories = true;
             directoryWatcher.NotifyFilter = NotifyFilters.DirectoryName;
+            directoryWatcher.InternalBufferSize = 32768;
 
-            scheduler = new EventLoopScheduler();
+            modelBuilderScheduler = new EventLoopScheduler();
+            siteGeneratorScheduler = new EventLoopScheduler();
+        }
+
+        // We expose the model events for others to listen to, they are forwarded on from this
+        public event Action<object, WikiModelEventArgs> PageAdded;
+        public event Action<object, WikiModelEventArgs> PageUpdated;
+        public event Action<object, WikiModelEventArgs> PageDeleted;
+        public event Action<object, WikiModelEventArgs> PageMoved;
+        public event Action<object, WikiModelEventArgs> DirectoryAdded;
+        public event Action<object, WikiModelEventArgs> DirectoryUpdated;
+        public event Action<object, WikiModelEventArgs> DirectoryDeleted;
+        public event Action<object, WikiModelEventArgs> DirectoryMoved;
+
+        public string Name
+        {
+            get
+            {
+                return wikiConfig.SiteName;
+            }
         }
 
         public void Start()
         {
-            System.Console.WriteLine(string.Format("Subscribing on thread: {0}", Thread.CurrentThread.ManagedThreadId));
+            System.Console.WriteLine(string.Format("Starting on thread: {0}", Thread.CurrentThread.ManagedThreadId));
 
-            SubscribeToEvent<FileSystemEventArgs>(fileWatcher, "Created", (e) => model.AddPage(e.FullPath));
-            SubscribeToEvent<FileSystemEventArgs>(fileWatcher, "Changed", (e) => model.UpdatePage(e.FullPath));
-            SubscribeToEvent<FileSystemEventArgs>(fileWatcher, "Deleted", (e) => model.DeletePage(e.FullPath));
-            SubscribeToEvent<RenamedEventArgs>(fileWatcher, "Renamed", (e) => model.RenamePage(e.OldFullPath, e.FullPath));
+            // subscribe the site generator model events and forward events to our own handlers
+            SubscribeToEvent<WikiModelEventArgs>(model, "DirectoryAdded", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.CreateDirectory(a.WikiPath), DirectoryAdded, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiModelEventArgs>(model, "DirectoryUpdated", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.UpdateDirectory(a.WikiPath), DirectoryUpdated, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiModelEventArgs>(model, "DirectoryDeleted", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.DeleteDirectory(a.WikiPath), DirectoryDeleted, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiModelEventArgs>(model, "DirectoryMoved", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.MoveDirectory(a.OldWikiPath, a.WikiPath), DirectoryMoved, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiModelEventArgs>(model, "PageAdded", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.CreatePage(a.WikiPath, a.MarkdownPath), PageAdded, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiModelEventArgs>(model, "PageUpdated", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.UpdatePage(a.WikiPath, a.MarkdownPath), PageUpdated, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiModelEventArgs>(model, "PageDeleted", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.DeletePage(a.WikiPath), PageDeleted, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiModelEventArgs>(model, "PageMoved", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.MovePage(a.OldWikiPath, a.WikiPath), PageMoved, args), (args) => args.MarkdownPath);
 
-            SubscribeToEvent<FileSystemEventArgs>(directoryWatcher, "Created", (e) => model.AddDirectory(e.FullPath));
-            SubscribeToEvent<FileSystemEventArgs>(directoryWatcher, "Changed", (e) => model.UpdateDirectory(e.FullPath));
-            SubscribeToEvent<FileSystemEventArgs>(directoryWatcher, "Deleted", (e) => model.DeleteDirectory(e.FullPath));
-            SubscribeToEvent<RenamedEventArgs>(directoryWatcher, "Renamed", (e) => model.RenameDirectory(e.OldFullPath, e.FullPath));
+            // subscribe the model builder to file system events
+            SubscribeToSampledEvent<FileSystemEventArgs>(fileWatcher, "Created", modelBuilderScheduler, (e) => model.AddPage(e.FullPath), (e) => e.FullPath, FileSystemSampleTime);
+            SubscribeToSampledEvent<FileSystemEventArgs>(fileWatcher, "Changed", modelBuilderScheduler, (e) => model.UpdatePage(e.FullPath), (e) => e.FullPath, FileSystemSampleTime);
+            SubscribeToSampledEvent<FileSystemEventArgs>(fileWatcher, "Deleted", modelBuilderScheduler, (e) => model.DeletePage(e.FullPath), (e) => e.FullPath, FileSystemSampleTime);
+            SubscribeToSampledEvent<RenamedEventArgs>(fileWatcher, "Renamed", modelBuilderScheduler, (e) => model.RenamePage(e.OldFullPath, e.FullPath), (e) => e.FullPath, FileSystemSampleTime);
+            SubscribeToSampledEvent<FileSystemEventArgs>(directoryWatcher, "Created", modelBuilderScheduler, (e) => model.AddDirectory(e.FullPath), (e) => e.FullPath, FileSystemSampleTime);
+            SubscribeToSampledEvent<FileSystemEventArgs>(directoryWatcher, "Changed", modelBuilderScheduler, (e) => model.UpdateDirectory(e.FullPath), (e) => e.FullPath, FileSystemSampleTime);
+            SubscribeToSampledEvent<FileSystemEventArgs>(directoryWatcher, "Deleted", modelBuilderScheduler, (e) => model.DeleteDirectory(e.FullPath), (e) => e.FullPath, FileSystemSampleTime);
+            SubscribeToSampledEvent<RenamedEventArgs>(directoryWatcher, "Renamed", modelBuilderScheduler, (e) => model.RenameDirectory(e.OldFullPath, e.FullPath), (e) => e.FullPath, FileSystemSampleTime);
+
+            // get the initial files
+            IEnumerable<string> initialSourceFiles = Directory.EnumerateFiles(wikiConfig.RootSourcePath, wikiConfig.Convertor.FileSearchString, SearchOption.AllDirectories);
+
+            // initialise the model
+            model.Init(wikiConfig.RootSourcePath, wikiConfig.RootWikiPath, initialSourceFiles);
 
             // Begin watching the file system
             fileWatcher.EnableRaisingEvents = true;
@@ -72,7 +108,8 @@ namespace Icklewik.Core
 
         public void Dispose()
         {
-            scheduler.Dispose();
+            modelBuilderScheduler.Dispose();
+            siteGeneratorScheduler.Dispose();
 
             fileWatcher.EnableRaisingEvents = false;
             directoryWatcher.EnableRaisingEvents = false;
@@ -81,15 +118,56 @@ namespace Icklewik.Core
             directoryWatcher.Dispose();
         }
 
-        private void SubscribeToEvent<TEventArgs>(FileSystemWatcher watcher, string eventName, Action<TEventArgs> eventAction) where TEventArgs : EventArgs
+        private void SubscribeToEvent<TEventArgs>(object target, string eventName, IScheduler scheduler, Action<TEventArgs> eventAction, Func<TEventArgs, string> identityFunc) where TEventArgs : EventArgs
         {
-            Observable.FromEventPattern<TEventArgs>(watcher, eventName)
-                .ObserveOn(scheduler)
-                .Subscribe(evt =>
-                {
-                    System.Console.WriteLine("Handling event ({0}) on thread: {1}", eventName, Thread.CurrentThread.ManagedThreadId);
-                    eventAction(evt.EventArgs);
-                });
+            ObserveOnAndSubscribe(
+                    Observable.FromEventPattern<TEventArgs>(target, eventName),
+                    eventName,
+                    scheduler,
+                    eventAction,
+                    identityFunc);
+        }
+
+        private void SubscribeToSampledEvent<TEventArgs>(object target, string eventName, IScheduler scheduler, Action<TEventArgs> eventAction, Func<TEventArgs, string> identityFunc, TimeSpan sampleTimeSpan) where TEventArgs : EventArgs
+        {
+            // TODO: Investigate
+            // experimental method, tries to group identical events together so we don't have to worry about multiple firings
+            // currently doesn't pass all unit tests so not used
+            //ObserveOnAndSubscribe(
+            //        Observable.FromEventPattern<TEventArgs>(target, eventName)
+            //            .GroupBy(evt => identityFunc(evt.EventArgs))
+            //            .SelectMany(grp => grp.Sample(sampleTimeSpan)),
+            //        eventName,
+            //        scheduler,
+            //        eventAction,
+            //        identityFunc);
+
+            // use forward to standard SubscribeToEvent
+            SubscribeToEvent(target, eventName, scheduler, eventAction, identityFunc);
+        }
+
+        private void ObserveOnAndSubscribe<TEventArgs>(IObservable<EventPattern<TEventArgs>> observable, string eventName, IScheduler scheduler, Action<TEventArgs> eventAction, Func<TEventArgs, string> identityFunc) where TEventArgs : EventArgs
+        {
+                observable
+                    .ObserveOn(scheduler)
+                    .Subscribe(evt =>
+                    {
+                        System.Console.WriteLine("{0} Handling event ({1}:{2}) on thread: {3}", DateTime.Now.Ticks, eventName, identityFunc(evt.EventArgs), Thread.CurrentThread.ManagedThreadId);
+                        eventAction(evt.EventArgs);
+                    });
+        }
+
+        private void HandleModelUpdate(Action<WikiModelEventArgs> generatorAction, Action<object, WikiModelEventArgs> postGenerationEventToFire, WikiModelEventArgs args)
+        {
+            // TODO: This is a little too simplistic. It may be that it would be better to have an
+            // event fired by the generator itself, then we could throttle events on a single
+            // page so we don't get 3 or 4 events at the same time
+            generatorAction(args);
+
+            if (postGenerationEventToFire != null)
+            {
+                postGenerationEventToFire(this, args);
+            }
         }
     }
 }

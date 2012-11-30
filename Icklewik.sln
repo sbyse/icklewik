@@ -3,9 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Icklewik.Core", "Icklewik.Core\Icklewik.Core.csproj", "{8A978D68-3F30-4E98-BD04-DB818275B19F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IckleWik.Core.Test", "Icklewik.Core.Test\IckleWik.Core.Test.csproj", "{3467CFF0-E153-4FAB-9119-46400B4D2911}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Icklewik.Core.Test", "Icklewik.Core.Test\Icklewik.Core.Test.csproj", "{3467CFF0-E153-4FAB-9119-46400B4D2911}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Icklewik.ConsoleApp", "Icklewik.ConsoleApp\Icklewik.ConsoleApp.csproj", "{0EB61EEA-842A-45BF-91EB-EACC23F8FC9E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Icklewik.WindowsService", "Icklewik.WindowsService\Icklewik.WindowsService.csproj", "{77561708-4092-469F-92D0-2EED389B5D0F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Icklekwik.Server", "Icklekwik.Server\Icklekwik.Server.csproj", "{7D9AA957-3935-430B-B92A-3CE829C92F70}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -47,6 +51,26 @@ Global
 		{0EB61EEA-842A-45BF-91EB-EACC23F8FC9E}.Release|Mixed Platforms.Build.0 = Release|x86
 		{0EB61EEA-842A-45BF-91EB-EACC23F8FC9E}.Release|x86.ActiveCfg = Release|x86
 		{0EB61EEA-842A-45BF-91EB-EACC23F8FC9E}.Release|x86.Build.0 = Release|x86
+		{77561708-4092-469F-92D0-2EED389B5D0F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77561708-4092-469F-92D0-2EED389B5D0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77561708-4092-469F-92D0-2EED389B5D0F}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{77561708-4092-469F-92D0-2EED389B5D0F}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{77561708-4092-469F-92D0-2EED389B5D0F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{77561708-4092-469F-92D0-2EED389B5D0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77561708-4092-469F-92D0-2EED389B5D0F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77561708-4092-469F-92D0-2EED389B5D0F}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{77561708-4092-469F-92D0-2EED389B5D0F}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{77561708-4092-469F-92D0-2EED389B5D0F}.Release|x86.ActiveCfg = Release|Any CPU
+		{7D9AA957-3935-430B-B92A-3CE829C92F70}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D9AA957-3935-430B-B92A-3CE829C92F70}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D9AA957-3935-430B-B92A-3CE829C92F70}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{7D9AA957-3935-430B-B92A-3CE829C92F70}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{7D9AA957-3935-430B-B92A-3CE829C92F70}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7D9AA957-3935-430B-B92A-3CE829C92F70}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7D9AA957-3935-430B-B92A-3CE829C92F70}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7D9AA957-3935-430B-B92A-3CE829C92F70}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{7D9AA957-3935-430B-B92A-3CE829C92F70}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{7D9AA957-3935-430B-B92A-3CE829C92F70}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

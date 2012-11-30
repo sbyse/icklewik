@@ -11,42 +11,42 @@ namespace Icklewik.Core.Test
     /// </summary>
     public class TestWikiModel
     {
-        private IList<WikiDirectory> createdDirectories;
-        private IList<WikiDirectory> updatedDirectories;
-        private IList<WikiDirectory> deletedDirectories;
-        private IList<WikiDirectory> movedDirectories;
+        private IList<string> createdDirectories;
+        private IList<string> updatedDirectories;
+        private IList<string> deletedDirectories;
+        private IList<string> movedDirectories;
 
-        private IList<WikiPage> createdPages;
-        private IList<WikiPage> updatedPages;
-        private IList<WikiPage> deletedPages;
-        private IList<WikiPage> movedPages;
+        private IList<string> createdPages;
+        private IList<string> updatedPages;
+        private IList<string> deletedPages;
+        private IList<string> movedPages;
 
         private WikiModel model;
 
         public TestWikiModel()
         {
-            createdDirectories = new List<WikiDirectory>();
-            updatedDirectories = new List<WikiDirectory>();
-            deletedDirectories = new List<WikiDirectory>();
-            movedDirectories = new List<WikiDirectory>();
+            createdDirectories = new List<string>();
+            updatedDirectories = new List<string>();
+            deletedDirectories = new List<string>();
+            movedDirectories = new List<string>();
 
-            createdPages = new List<WikiPage>();
-            updatedPages = new List<WikiPage>();
-            deletedPages = new List<WikiPage>();
-            movedPages = new List<WikiPage>();
+            createdPages = new List<string>();
+            updatedPages = new List<string>();
+            deletedPages = new List<string>();
+            movedPages = new List<string>();
 
             model = new WikiModel(".md");
 
             // setup event handlers
-            model.DirectoryAdded += (directory) => createdDirectories.Add(directory);
-            model.DirectoryUpdated += (directory) => updatedDirectories.Add(directory);
-            model.DirectoryDeleted += (directory) => deletedDirectories.Add(directory);
-            model.DirectoryMoved += (oldWikiPath, directory) => movedDirectories.Add(directory);
+            model.DirectoryAdded += (source, args) => createdDirectories.Add(args.MarkdownPath);
+            model.DirectoryUpdated += (source, args) => updatedDirectories.Add(args.MarkdownPath);
+            model.DirectoryDeleted += (source, args) => deletedDirectories.Add(args.MarkdownPath);
+            model.DirectoryMoved += (source, args) => movedDirectories.Add(args.MarkdownPath);
 
-            model.PageAdded += (page) => createdPages.Add(page);
-            model.PageUpdated += (page) => updatedPages.Add(page);
-            model.PageDeleted += (page) => deletedPages.Add(page);
-            model.PageMoved += (oldWikiPath, page) => movedPages.Add(page);
+            model.PageAdded += (source, args) => createdPages.Add(args.MarkdownPath);
+            model.PageUpdated += (source, args) => updatedPages.Add(args.MarkdownPath);
+            model.PageDeleted += (source, args) => deletedPages.Add(args.MarkdownPath);
+            model.PageMoved += (source, args) => movedPages.Add(args.MarkdownPath);
 
             // create list of files
             IList<string> markdownFiles = new List<string>

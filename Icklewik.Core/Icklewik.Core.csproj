@@ -12,6 +12,7 @@
     <AssemblyName>Icklewik.Core</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile>Client</TargetFrameworkProfile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -60,6 +61,7 @@
     <Compile Include="IWikiEntryVisitor.cs" />
     <Compile Include="MarkdownSharpDialogue.cs" />
     <Compile Include="RenameVisitor.cs" />
+    <Compile Include="WikiConfig.cs" />
     <Compile Include="WikiDirectory.cs" />
     <Compile Include="IDialogue.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -71,6 +73,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Adaptors\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

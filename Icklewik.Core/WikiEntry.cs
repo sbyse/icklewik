@@ -16,9 +16,6 @@ namespace Icklewik.Core
         // time that a wiki entry was last updated
         public DateTime LastUpdated { get; set; }
 
-        // time that the wiki page was last updated
-        public DateTime? LastGenerated { get; set; }
-
         // how many levels into the structure are we?
         public int Depth { get; set; }
 

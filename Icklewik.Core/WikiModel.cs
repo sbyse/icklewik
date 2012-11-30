@@ -7,6 +7,22 @@ using System.Text;
 
 namespace Icklewik.Core
 {
+    public class WikiModelEventArgs : EventArgs
+    {
+        // used for "move" events only
+        public string OldWikiPath { get; set; }
+
+        // relative path to source file
+        public string MarkdownPath { get; set; }
+
+        // relative path to wiki page (where it's stored on the file system)
+        public string WikiPath { get; set; }
+
+        // relative url to wiki page
+        public string WikiUrl { get; set; }
+    }
+
+
     /// <summary>
     /// The model stores the logical representation of the source files and maps the source files to the
     /// corresponding wiki pages
@@ -15,28 +31,47 @@ namespace Icklewik.Core
     /// </summary>
     public class WikiModel
     {
-        private string fileExtension;
-
-        // root directory represents the base node of the source tree, the tree can
-        // be traversed from this point if required
-        private WikiDirectory rootDirectory;
-
-        // we also keep all entries in a map for simple retrieval of specific entries
-        private IDictionary<string, WikiEntry> wikiEntryMap;
-
-        private DeleteVisitor deleteVisitor;
-
         // small config class, used to simplify the "AddDirectory" method
         private class RootInfo
         {
             public string RootWikiPath { get; set; }
         }
 
+        // make sure we compare paths in a consistent way
+        private class PathComparer : IEqualityComparer<String>
+        {
+            public bool Equals(string x, string y)
+            {
+                return x.Equals(y, StringComparison.InvariantCultureIgnoreCase);
+            }
+
+            public int GetHashCode(string obj)
+            {
+                return obj.GetHashCode();
+            }
+        }
+
+        private string fileExtension;
+
+        // root directory represents the base node of the source tree, the tree can
+        // be traversed from this point if required
+        private WikiDirectory rootDirectory;
+
+        private PathComparer pathComparer;
+
+        // we also keep all entries in a map for simple retrieval of specific entries
+        private IDictionary<string, WikiEntry> wikiEntryMap;
+
+        private DeleteVisitor deleteVisitor;
+
+
         public WikiModel(string extension)
         {
             fileExtension = extension;
 
-            wikiEntryMap = new Dictionary<string, WikiEntry>();
+            pathComparer = new PathComparer();
+
+            wikiEntryMap = new Dictionary<string, WikiEntry>(pathComparer);
 
             deleteVisitor = new DeleteVisitor(
                 page => DeletePageDetails(page),
@@ -44,15 +79,15 @@ namespace Icklewik.Core
             );
         }
 
-        public event Action<WikiPage> PageAdded;
-        public event Action<WikiPage> PageUpdated;
-        public event Action<WikiPage> PageDeleted;
-        public event Action<string, WikiPage> PageMoved;
+        public event Action<object, WikiModelEventArgs> PageAdded;
+        public event Action<object, WikiModelEventArgs> PageUpdated;
+        public event Action<object, WikiModelEventArgs> PageDeleted;
+        public event Action<object, WikiModelEventArgs> PageMoved;
 
-        public event Action<WikiDirectory> DirectoryAdded;
-        public event Action<WikiDirectory> DirectoryUpdated;
-        public event Action<WikiDirectory> DirectoryDeleted;
-        public event Action<string, WikiDirectory> DirectoryMoved;
+        public event Action<object, WikiModelEventArgs> DirectoryAdded;
+        public event Action<object, WikiModelEventArgs> DirectoryUpdated;
+        public event Action<object, WikiModelEventArgs> DirectoryDeleted;
+        public event Action<object, WikiModelEventArgs> DirectoryMoved;
 
         /// <summary>
         /// Represents the file system location at the top of the source tree
@@ -81,13 +116,13 @@ namespace Icklewik.Core
         public void Init(string rootSourcePath, string rootWikiPath, IEnumerable<string> initialFiles)
         {
             // create the root directory as as special case
-            AddDirectory(rootSourcePath, new RootInfo { RootWikiPath = rootWikiPath });
+            AddDirectory(GetFullPath(rootSourcePath), new RootInfo { RootWikiPath = GetFullPath(rootWikiPath) });
 
             // iterate over all directories and add all relevant files to the model (which will fire the relevant events and prompt the
             // generator to generate the wiki itself)
-            foreach (string markdownFilePath in initialFiles)
+            foreach (string markdownFilePath in initialFiles.Select(path => GetFullPath(path)))
             {
-                if (!markdownFilePath.Equals(rootSourcePath))
+                if (!pathComparer.Equals(markdownFilePath, RootSourcePath))
                 {
                     AddPage(markdownFilePath);
                 }
@@ -96,6 +131,9 @@ namespace Icklewik.Core
 
         public void AddPage(string fullPath)
         {
+            // make sure we've got the full path
+            fullPath = GetFullPath(fullPath);
+
             Debug.Assert(!wikiEntryMap.ContainsKey(fullPath));
 
             string parentPath = Path.GetDirectoryName(fullPath);
@@ -117,7 +155,7 @@ namespace Icklewik.Core
                 Parent = parent
             };
 
-            string relativePath = newPage.MarkdownPath.Substring(rootDirectory.MarkdownPath.Length - 1);
+            string relativePath = GetWikiPath(newPage.MarkdownPath);
 
             // change file extension
             newPage.WikiUrl = Path.Combine(Path.GetDirectoryName(relativePath), Path.GetFileNameWithoutExtension(relativePath) + ".html");
@@ -129,14 +167,15 @@ namespace Icklewik.Core
             // add to the map
             wikiEntryMap[fullPath] = newPage;
 
-            if (PageAdded != null)
-            {
-                PageAdded(newPage);
-            }
+            // fire event
+            FireEvent(PageAdded, newPage );
         }
 
         public void UpdatePage(string fullPath)
         {
+            // make sure we've got the full path
+            fullPath = GetFullPath(fullPath);
+
             Debug.Assert(wikiEntryMap.ContainsKey(fullPath));
 
             WikiEntry entry;
@@ -144,15 +183,16 @@ namespace Icklewik.Core
             {
                 entry.LastUpdated = DateTime.UtcNow;
 
-                if (PageUpdated != null)
-                {
-                    PageUpdated(entry as WikiPage);
-                }
+                // fire event
+                FireEvent(PageUpdated, entry);
             }
         }
 
         public void DeletePage(string fullPath)
-        {
+        {            
+            // make sure we've got the full path
+            fullPath = GetFullPath(fullPath);
+
             Debug.Assert(wikiEntryMap.ContainsKey(fullPath));
 
             WikiEntry entry;
@@ -164,6 +204,10 @@ namespace Icklewik.Core
 
         public void RenamePage(string oldFullPath, string newFullPath)
         {
+            // make sure we've got the full paths
+            oldFullPath = GetFullPath(oldFullPath);
+            newFullPath = GetFullPath(newFullPath);
+
             // it's possible that the file rename could bring the file
             // into scope (i.e. if the file extension changes)
             // in that case this is just an add
@@ -171,17 +215,14 @@ namespace Icklewik.Core
             WikiEntry entry;
             if (wikiEntryMap.TryGetValue(oldFullPath, out entry))
             {
-                if (newFullPath.Contains(fileExtension))
+                if (newFullPath.EndsWith(fileExtension))
                 {
                     var visitor = new RenameVisitor(
                         oldFullPath,
                         newFullPath,
                         (oldWikiPath, page) =>
                         {
-                            if (PageMoved != null)
-                            {
-                                PageMoved(oldWikiPath, page);
-                            }
+                            FireEvent(PageMoved, page, oldWikiPath);
                         });
 
                     entry.Accept(visitor);
@@ -192,7 +233,7 @@ namespace Icklewik.Core
                     DeletePage(oldFullPath);
                 }
             }
-            else if (Path.GetExtension(newFullPath).Equals(fileExtension))
+            else if (Path.GetExtension(newFullPath).Equals(fileExtension, StringComparison.InvariantCultureIgnoreCase))
             {
                 // and its only an add if the extension is correct (just in case we have
                 // been renamed from (for example) .md to .txt
@@ -202,6 +243,9 @@ namespace Icklewik.Core
 
         public void AddDirectory(string fullPath)
         {
+            // make sure we've got the full paths
+            //fullPath = GetFullPath(fullPath);
+
             //Debug.Assert(!wikiEntryMap.ContainsKey(fullPath));
 
             //AddDirectory(fullPath, null);
@@ -209,6 +253,9 @@ namespace Icklewik.Core
 
         public void UpdateDirectory(string fullPath)
         {
+            // make sure we've got the full paths
+            fullPath = GetFullPath(fullPath);
+
             Debug.Assert(wikiEntryMap.ContainsKey(fullPath));
 
             WikiEntry entry;
@@ -216,18 +263,15 @@ namespace Icklewik.Core
             {
                 entry.LastUpdated = DateTime.UtcNow;
 
-                if (DirectoryUpdated != null)
-                {
-                    DirectoryUpdated(entry as WikiDirectory);
-                }
+                // fire event
+                FireEvent(DirectoryUpdated, entry);
             }
         }
 
         public void DeleteDirectory(string fullPath)
         {
-            // this will be called when a directory is deleted,
-            // it should therefore delete all child entries
-            Debug.Assert(wikiEntryMap.ContainsKey(fullPath));
+            // make sure we've got the full paths
+            fullPath = GetFullPath(fullPath);
 
             WikiEntry entry;
             if (wikiEntryMap.TryGetValue(fullPath, out entry))
@@ -237,7 +281,11 @@ namespace Icklewik.Core
         }
 
         public void RenameDirectory(string oldFullPath, string newFullPath)
-        {
+        {            
+            // make sure we've got the full paths
+            oldFullPath = GetFullPath(oldFullPath);
+            newFullPath = GetFullPath(newFullPath);
+
             WikiEntry entry;
             if (wikiEntryMap.TryGetValue(oldFullPath, out entry))
             {
@@ -246,17 +294,11 @@ namespace Icklewik.Core
                     newFullPath,
                     (oldWikiPath, page) =>
                     {
-                        if (PageMoved != null)
-                        {
-                            PageMoved(oldWikiPath, page);
-                        }
+                        FireEvent(PageMoved, page, oldWikiPath);
                     },
                     (oldWikiPath, directory) =>
                     {
-                        if (DirectoryMoved != null)
-                        {
-                            DirectoryMoved(oldWikiPath, directory);
-                        }
+                        FireEvent(DirectoryMoved, directory, oldWikiPath);
                     });
 
                 entry.Accept(visitor);
@@ -289,7 +331,6 @@ namespace Icklewik.Core
             {
                 MarkdownPath = sourcePath,
                 LastUpdated = DateTime.UtcNow,
-                LastGenerated = null, // set when we generate the relevant directory
                 Depth = sourcePath.Count(c => c.Equals(Path.DirectorySeparatorChar)),
                 Parent = parent,
                 Children = new List<WikiEntry>()
@@ -297,7 +338,7 @@ namespace Icklewik.Core
 
             if (rootInfo == null)
             {
-                newDirectory.WikiUrl = newDirectory.MarkdownPath.Substring(rootDirectory.MarkdownPath.Length - 1);
+                newDirectory.WikiUrl = GetWikiPath(newDirectory.MarkdownPath);
                 newDirectory.WikiPath = Path.Combine(rootDirectory.WikiPath, newDirectory.WikiUrl);
 
                 // add child to the parent
@@ -314,10 +355,7 @@ namespace Icklewik.Core
             wikiEntryMap[newDirectory.MarkdownPath] = newDirectory;
 
             // fire event
-            if (DirectoryAdded != null)
-            {
-                DirectoryAdded(newDirectory);
-            }
+            FireEvent(DirectoryAdded, newDirectory);
         }
 
         private void DeleteEntryCommon(WikiEntry entry)
@@ -349,10 +387,7 @@ namespace Icklewik.Core
             wikiEntryMap.Remove(page.MarkdownPath);
 
             // fire event
-            if (PageDeleted != null)
-            {
-                PageDeleted(page);
-            }
+            FireEvent(PageDeleted, page );
         }
 
         private void DeleteDirectoryDetails(WikiDirectory directory)
@@ -361,9 +396,40 @@ namespace Icklewik.Core
             wikiEntryMap.Remove(directory.MarkdownPath);
 
             // fire event
-            if (DirectoryDeleted != null)
+            FireEvent(DirectoryDeleted, directory );
+        }
+
+        /// <summary>
+        /// Generates the canonical full path, use for all further comparisons, indices etc
+        /// </summary>
+        /// <param name="path">Path, can be relative (to the working directory) or a full path. File or directory</param>
+        /// <returns>Canonical full path</returns>
+        private string GetFullPath(string path)
+        {
+            return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar);
+        }
+
+        /// <summary>
+        /// Generates the wiki path (that is the relative path, based on the wiki's root)
+        /// </summary>
+        /// <param name="fullPath">Canonical full path, generated by GetFullPath (above)</param>
+        /// <returns>Wiki's relative path</returns>
+        private string GetWikiPath(string fullPath)
+        {
+            return fullPath.Substring(rootDirectory.MarkdownPath.Length + 1);
+        }
+         
+        private void FireEvent(Action<object, WikiModelEventArgs> eventToFire, WikiEntry entry, string oldWikiPath = "")
+        {
+            if (eventToFire != null)
             {
-                DirectoryDeleted(directory);
+                eventToFire(this, new WikiModelEventArgs
+                    {
+                        MarkdownPath = entry.MarkdownPath,
+                        WikiPath = entry.WikiPath,
+                        WikiUrl = entry.WikiUrl,
+                        OldWikiPath = oldWikiPath
+                    });
             }
         }
     }
