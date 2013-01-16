@@ -64,6 +64,8 @@
   <ItemGroup>
     <Compile Include="ChangeNotifier.cs" />
     <Compile Include="ServerConfig.cs" />
+    <Compile Include="ViewModels\Wiki\SiteModel.cs" />
+    <Compile Include="ViewModels\Wiki\DirectoryModel.cs" />
     <Compile Include="ViewModels\Wiki\PageModel.cs" />
     <Compile Include="WikiBootstrapper.cs" />
     <Compile Include="WikiHub.cs" />
@@ -72,6 +74,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="Views\Wiki\Site.cshtml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="Views\Wiki\Directory.cshtml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="Views\_Layout.cshtml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -97,7 +105,7 @@
     <Content Include="Static\Scripts\bootstrap.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Static\Scripts\jquery-1.6.2.js">
+    <Content Include="Static\Scripts\jquery-1.8.3.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Static\Scripts\jquery.signalR.core.js">
@@ -119,6 +127,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Static\Scripts\jquery.signalR.transports.webSockets.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Static\Scripts\native.history.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Static\Styles\bootstrap-responsive.css">

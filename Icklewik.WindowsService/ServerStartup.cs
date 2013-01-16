@@ -12,6 +12,7 @@ namespace Icklewik.WindowsService
 {
     public class ServerStartup : IDisposable
     {
+        private ServerConfig serverConfig;
         private IDictionary<string, WikiSite> sites;
 
         private NancyHost nancyHost;
@@ -19,6 +20,7 @@ namespace Icklewik.WindowsService
 
         public ServerStartup(ServerConfig config, bool enableDiagnostics = false, string diagnosticsPassword = "")
         {
+            serverConfig = config;
             sites = new Dictionary<string, WikiSite>();
 
             foreach (var wikiConfig in config.AllConfig)
@@ -87,6 +89,14 @@ namespace Icklewik.WindowsService
 
         private void HandleEvent(string siteName, string wikiUrl)
         {
+            // update the site's copy of the model
+            WikiModel localModel;
+            if (serverConfig.TryGetModel(siteName, out localModel)
+            {
+                // TODO: Update model (need more details)
+            }
+
+            // notify any interested parties
             ChangeNotifier.NotifyPageUpdated(siteName, wikiUrl);
         }
     }

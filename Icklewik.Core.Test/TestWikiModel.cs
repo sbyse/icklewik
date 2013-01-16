@@ -21,7 +21,7 @@ namespace Icklewik.Core.Test
         private IList<string> deletedPages;
         private IList<string> movedPages;
 
-        private WikiModel model;
+        private WikiRepository model;
 
         public TestWikiModel()
         {
@@ -35,7 +35,7 @@ namespace Icklewik.Core.Test
             deletedPages = new List<string>();
             movedPages = new List<string>();
 
-            model = new WikiModel(".md");
+            model = new WikiRepository(".md");
 
             // setup event handlers
             model.DirectoryAdded += (source, args) => createdDirectories.Add(args.MarkdownPath);

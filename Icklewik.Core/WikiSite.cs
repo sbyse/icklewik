@@ -16,7 +16,7 @@ namespace Icklewik.Core
 
         private WikiConfig wikiConfig;
 
-        private WikiModel model;
+        private WikiRepository model;
         private WikiGenerator generator;
         private FileSystemWatcher fileWatcher;
         private FileSystemWatcher directoryWatcher;
@@ -30,7 +30,7 @@ namespace Icklewik.Core
         {
             wikiConfig = config;
 
-            model = new WikiModel(wikiConfig.Convertor.FileExtension);
+            model = new WikiRepository(wikiConfig.Convertor.FileExtension);
 
             generator = new WikiGenerator(wikiConfig.Convertor);
 
@@ -54,14 +54,14 @@ namespace Icklewik.Core
         }
 
         // We expose the model events for others to listen to, they are forwarded on from this
-        public event Action<object, WikiModelEventArgs> PageAdded;
-        public event Action<object, WikiModelEventArgs> PageUpdated;
-        public event Action<object, WikiModelEventArgs> PageDeleted;
-        public event Action<object, WikiModelEventArgs> PageMoved;
-        public event Action<object, WikiModelEventArgs> DirectoryAdded;
-        public event Action<object, WikiModelEventArgs> DirectoryUpdated;
-        public event Action<object, WikiModelEventArgs> DirectoryDeleted;
-        public event Action<object, WikiModelEventArgs> DirectoryMoved;
+        public event Action<object, WikiRepositoryEventArgs> PageAdded;
+        public event Action<object, WikiRepositoryEventArgs> PageUpdated;
+        public event Action<object, WikiRepositoryEventArgs> PageDeleted;
+        public event Action<object, WikiRepositoryEventArgs> PageMoved;
+        public event Action<object, WikiRepositoryEventArgs> DirectoryAdded;
+        public event Action<object, WikiRepositoryEventArgs> DirectoryUpdated;
+        public event Action<object, WikiRepositoryEventArgs> DirectoryDeleted;
+        public event Action<object, WikiRepositoryEventArgs> DirectoryMoved;
 
         public string Name
         {
@@ -76,14 +76,14 @@ namespace Icklewik.Core
             System.Console.WriteLine(string.Format("Starting on thread: {0}", Thread.CurrentThread.ManagedThreadId));
 
             // subscribe the site generator model events and forward events to our own handlers
-            SubscribeToEvent<WikiModelEventArgs>(model, "DirectoryAdded", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.CreateDirectory(a.WikiPath), DirectoryAdded, args), (args) => args.MarkdownPath);
-            SubscribeToEvent<WikiModelEventArgs>(model, "DirectoryUpdated", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.UpdateDirectory(a.WikiPath), DirectoryUpdated, args), (args) => args.MarkdownPath);
-            SubscribeToEvent<WikiModelEventArgs>(model, "DirectoryDeleted", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.DeleteDirectory(a.WikiPath), DirectoryDeleted, args), (args) => args.MarkdownPath);
-            SubscribeToEvent<WikiModelEventArgs>(model, "DirectoryMoved", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.MoveDirectory(a.OldWikiPath, a.WikiPath), DirectoryMoved, args), (args) => args.MarkdownPath);
-            SubscribeToEvent<WikiModelEventArgs>(model, "PageAdded", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.CreatePage(a.WikiPath, a.MarkdownPath), PageAdded, args), (args) => args.MarkdownPath);
-            SubscribeToEvent<WikiModelEventArgs>(model, "PageUpdated", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.UpdatePage(a.WikiPath, a.MarkdownPath), PageUpdated, args), (args) => args.MarkdownPath);
-            SubscribeToEvent<WikiModelEventArgs>(model, "PageDeleted", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.DeletePage(a.WikiPath), PageDeleted, args), (args) => args.MarkdownPath);
-            SubscribeToEvent<WikiModelEventArgs>(model, "PageMoved", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.MovePage(a.OldWikiPath, a.WikiPath), PageMoved, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiRepositoryEventArgs>(model, "DirectoryAdded", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.CreateDirectory(a.WikiPath), DirectoryAdded, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiRepositoryEventArgs>(model, "DirectoryUpdated", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.UpdateDirectory(a.WikiPath), DirectoryUpdated, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiRepositoryEventArgs>(model, "DirectoryDeleted", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.DeleteDirectory(a.WikiPath), DirectoryDeleted, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiRepositoryEventArgs>(model, "DirectoryMoved", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.MoveDirectory(a.OldWikiPath, a.WikiPath), DirectoryMoved, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiRepositoryEventArgs>(model, "PageAdded", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.CreatePage(a.WikiPath, a.MarkdownPath), PageAdded, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiRepositoryEventArgs>(model, "PageUpdated", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.UpdatePage(a.WikiPath, a.MarkdownPath), PageUpdated, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiRepositoryEventArgs>(model, "PageDeleted", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.DeletePage(a.WikiPath), PageDeleted, args), (args) => args.MarkdownPath);
+            SubscribeToEvent<WikiRepositoryEventArgs>(model, "PageMoved", siteGeneratorScheduler, (args) => HandleModelUpdate(a => generator.MovePage(a.OldWikiPath, a.WikiPath), PageMoved, args), (args) => args.MarkdownPath);
 
             // subscribe the model builder to file system events
             SubscribeToSampledEvent<FileSystemEventArgs>(fileWatcher, "Created", modelBuilderScheduler, (e) => model.AddPage(e.FullPath), (e) => e.FullPath, FileSystemSampleTime);
@@ -157,7 +157,7 @@ namespace Icklewik.Core
                     });
         }
 
-        private void HandleModelUpdate(Action<WikiModelEventArgs> generatorAction, Action<object, WikiModelEventArgs> postGenerationEventToFire, WikiModelEventArgs args)
+        private void HandleModelUpdate(Action<WikiRepositoryEventArgs> generatorAction, Action<object, WikiRepositoryEventArgs> postGenerationEventToFire, WikiRepositoryEventArgs args)
         {
             // TODO: This is a little too simplistic. It may be that it would be better to have an
             // event fired by the generator itself, then we could throttle events on a single

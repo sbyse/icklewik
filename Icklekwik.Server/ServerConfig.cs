@@ -13,18 +13,25 @@ namespace Icklekwik.Server
     /// </summary>
     public class ServerConfig
     {
-        private ConcurrentDictionary<string, WikiConfig> configMap;
+        // TODO: The concurrent dictionary doesn't really help us here. The WikiConfig should never change
+        // but the model will be updated continously and needs to be read by multiple threads - we need to
+        // implement a proper thread safe way of reading the model details. Or else use some sort of caching layer
+        // here that has threadsafey built in
+        private ConcurrentDictionary<string, Tuple<WikiConfig, WikiModel>> configMap;
 
         public ServerConfig(IEnumerable<WikiConfig> config)
         {
-            configMap = new ConcurrentDictionary<string, WikiConfig>(config.ToDictionary(c => CreateSafeName(c.SiteName)));
+            configMap = new ConcurrentDictionary<string, Tuple<WikiConfig, WikiModel>>(
+                config.ToDictionary(
+                    c => CreateSafeName(c.SiteName),
+                    c => new Tuple<WikiConfig, WikiModel>(c, new WikiModel())));
         }
 
         public IEnumerable<WikiConfig> AllConfig
         {
             get
             {
-                return configMap.Values;
+                return configMap.Values.Select(t => t.Item1);
             }
         }
 
@@ -32,7 +39,32 @@ namespace Icklekwik.Server
         {
             string safeName = CreateSafeName(siteName);
 
-            return configMap.TryGetValue(siteName, out value);
+            Tuple<WikiConfig, WikiModel> tuple;
+            if (configMap.TryGetValue(siteName, out tuple))
+            {
+                value = tuple.Item1;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public bool TryGetModel(string siteName, out WikiModel value)
+        {
+            string safeName = CreateSafeName(siteName);
+
+            Tuple<WikiConfig, WikiModel> tuple;
+            if (configMap.TryGetValue(siteName, out tuple))
+            {
+                value = tuple.Item2;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         private string CreateSafeName(string siteName)

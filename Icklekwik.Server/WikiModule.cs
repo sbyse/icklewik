@@ -19,7 +19,54 @@ namespace Icklekwik.Server
         {
             config = serverConfig;
 
-            Get["/{site}/{page}"] = parameters =>
+            // add top level "site" route
+            Get["/{site}"] = parameters =>
+                {
+                    WikiConfig wikiConfig;
+                    if (config.TryGetConfig(parameters["site"], out wikiConfig))
+                    {
+                        SiteModel model = new SiteModel()
+                        {
+                            IsPartialView = Request.Query.isPartial,
+                            WikiUrl = "/",
+                            SiteMap = null // TODO: Finish me
+                        };
+
+                        Context.ViewBag.SiteName = wikiConfig.SiteName;
+
+                        return View["Site.cshtml", model];
+                    }
+                    else
+                    {
+                        return HttpStatusCode.NotFound;
+                    }
+                };
+
+            // add "directory" route, subpath should not contain a "." or a "/"
+            Get[@"/{site}/(?<directory>[^\.]*)"] = parameters =>
+                {
+                    WikiConfig wikiConfig;
+                    if (config.TryGetConfig(parameters["site"], out wikiConfig) && 
+                        Directory.Exists(Path.Combine(wikiConfig.RootWikiPath, parameters["directory"])))
+                    {
+                        DirectoryModel model = new DirectoryModel()
+                        {
+                            IsPartialView = Request.Query.isPartial,
+                            WikiUrl = parameters["directory"],
+                        };
+
+                        Context.ViewBag.SiteName = wikiConfig.SiteName;
+
+                        return View["Directory.cshtml", model];
+                    }
+                    else
+                    {
+                        return HttpStatusCode.NotFound;
+                    }
+                };
+
+            // add "page" route, subpath should always have a file extension (and therefore at least one ".")
+            Get[@"/{site}/(?<page>.*\..*)"] = parameters =>
                 {
                     WikiConfig wikiConfig;
                     if (config.TryGetConfig(parameters["site"], out wikiConfig) && 
@@ -31,6 +78,8 @@ namespace Icklekwik.Server
                             WikiUrl = parameters["page"],
                             Contents = File.ReadAllText(Path.Combine(wikiConfig.RootWikiPath, parameters["page"]))
                         };
+
+                        Context.ViewBag.SiteName = wikiConfig.SiteName;
 
                         return View["Page.cshtml", model];
                     }

@@ -6,7 +6,7 @@ using System.IO;
 using System.ServiceProcess;
 using Icklekwik.Server;
 using Icklewik.Core;
-using Nancy.Hosting.Self;
+using Icklewik.Filters;
 
 namespace Icklewik.WindowsService
 {
@@ -25,13 +25,16 @@ namespace Icklewik.WindowsService
                     {
                         case "-i":
                         case "-install":
-                            install = true; break;
+                            install = true; 
+                            break;
                         case "-u":
                         case "-uninstall":
-                            uninstall = true; break;
+                            uninstall = true;
+                            break;
                         case "-c":
                         case "-console":
-                            console = true; break;
+                            console = true; 
+                            break;
                         default:
                             Console.Error.WriteLine("Argument not expected: " + arg);
                             break;
@@ -42,10 +45,12 @@ namespace Icklewik.WindowsService
                 {
                     Install(true, args);
                 }
+
                 if (install)
                 {
                     Install(false, args);
                 }
+
                 if (console)
                 {
                     Console.WriteLine("Starting...");
@@ -130,6 +135,12 @@ namespace Icklewik.WindowsService
                         Convertor = new Convertor(new MarkdownSharpDialogue())
                     } 
                 });
+
+            // add filters
+            foreach (var config in serverConfig.AllConfig)
+            {
+                config.Convertor.PostConvertors.Add(new MarkdownLinkPostFilter());
+            }
 
             // basic startup pattern taken from: 
             // https://github.com/loudej/owin-samples/blob/master/src/ConsoleNancySignalR/Program.cs

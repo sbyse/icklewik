@@ -98,6 +98,10 @@
       <Project>{8a978d68-3f30-4e98-bd04-db818275b19f}</Project>
       <Name>Icklewik.Core</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Icklewik.Filters\Icklewik.Filters.csproj">
+      <Project>{163221a7-899d-4a6e-97aa-93c160d213da}</Project>
+      <Name>Icklewik.Filters</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

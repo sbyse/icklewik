@@ -1,4 +1,6 @@
-﻿namespace Icklewik.Core
+﻿using System.Collections.Generic;
+
+namespace Icklewik.Core
 {
     /// <summary>
     /// Converts the source file to a valid html file using the supplied dialogue
@@ -13,6 +15,9 @@
         {
             dialogueImplementation = impl;
             FileExtension = fileExtension;
+
+            PreConvertors = new List<IContentFilter>();
+            PostConvertors = new List<IContentFilter>();
         }
 
         public string FileExtension { get; private set; }
@@ -25,9 +30,27 @@
             }
         }
 
+        public IList<IContentFilter> PreConvertors { get; private set; }
+
+        public IList<IContentFilter> PostConvertors { get; private set; }
+
         public string Convert(string sourceText)
         {
-            return dialogueImplementation.Convert(sourceText);
+            // update source text from preconvertors
+            foreach (var preconvert in PreConvertors)
+            {
+                sourceText = preconvert.Apply(sourceText);
+            }
+
+            string outputText = dialogueImplementation.Convert(sourceText);
+
+            // update output text using postconvertors
+            foreach (var postconvert in PostConvertors)
+            {
+                outputText = postconvert.Apply(outputText);
+            }
+
+            return outputText;
         }
     }
 }
