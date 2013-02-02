@@ -1,9 +1,9 @@
-﻿using Xunit;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
-using System;
 using System.Linq;
 using System.Threading;
-using System.Collections.Generic;
+using Xunit;
 
 namespace Icklewik.Core.Test
 {
@@ -51,15 +51,15 @@ namespace Icklewik.Core.Test
             });
 
             // setup event handlers
-            site.DirectoryAdded += (source, args) => createdDirectories.Add(args.MarkdownPath);
-            site.DirectoryUpdated += (source, args) => updatedDirectories.Add(args.MarkdownPath);
-            site.DirectoryDeleted += (source, args) => deletedDirectories.Add(args.MarkdownPath);
-            site.DirectoryMoved += (source, args) => movedDirectories.Add(args.MarkdownPath);
+            site.DirectoryAdded += (source, args) => createdDirectories.Add(args.SourcePath);
+            site.DirectoryUpdated += (source, args) => updatedDirectories.Add(args.SourcePath);
+            site.DirectoryDeleted += (source, args) => deletedDirectories.Add(args.SourcePath);
+            site.DirectoryMoved += (source, args) => movedDirectories.Add(args.SourcePath);
 
-            site.PageAdded += (source, args) => createdPages.Add(args.MarkdownPath);
-            site.PageUpdated += (source, args) => updatedPages.Add(args.MarkdownPath);
-            site.PageDeleted += (source, args) => deletedPages.Add(args.MarkdownPath);
-            site.PageMoved += (source, args) => movedPages.Add(args.MarkdownPath);
+            site.PageAdded += (source, args) => createdPages.Add(args.SourcePath);
+            site.PageUpdated += (source, args) => updatedPages.Add(args.SourcePath);
+            site.PageDeleted += (source, args) => deletedPages.Add(args.SourcePath);
+            site.PageMoved += (source, args) => movedPages.Add(args.SourcePath);
 
             site.Start();
 

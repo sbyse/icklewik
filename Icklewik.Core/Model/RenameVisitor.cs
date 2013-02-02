@@ -3,17 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Icklewik.Core
+namespace Icklewik.Core.Model
 {
     public class RenameVisitor : IWikiEntryVisitor
     {
         private string oldPath;
         private string renamedPath;
 
-        private Action<string, WikiPage> pageRenameAction;
-        private Action<string, WikiDirectory> directoryRenameAction;
+        private Action<string, string, WikiPage> pageRenameAction;
+        private Action<string, string, WikiDirectory> directoryRenameAction;
 
-        public RenameVisitor(string oldPath, string renamedPath, Action<string, WikiPage> pageRename, Action<string, WikiDirectory> directoryRename = null)
+        public RenameVisitor(string oldPath, string renamedPath, Action<string, string, WikiPage> pageRename, Action<string, string, WikiDirectory> directoryRename = null)
         {
             this.oldPath = oldPath;
             this.renamedPath = renamedPath;
@@ -24,6 +24,7 @@ namespace Icklewik.Core
 
         public void Visit(WikiDirectory directory)
         {
+            string oldSourcePath = directory.SourcePath;
             string oldWikiPath = directory.WikiPath;
 
             CommonVisit(directory);
@@ -35,25 +36,26 @@ namespace Icklewik.Core
 
             if (directoryRenameAction != null)
             {
-                directoryRenameAction(oldWikiPath, directory);
+                directoryRenameAction(oldSourcePath, oldWikiPath, directory);
             }
         }
 
         public void Visit(WikiPage page)
         {
+            string oldSourcePath = page.SourcePath;
             string oldWikiPath = page.WikiPath;
 
             CommonVisit(page);
 
             if (pageRenameAction != null)
             {
-                pageRenameAction(oldWikiPath, page);
+                pageRenameAction(oldSourcePath, oldWikiPath, page);
             }
         }
 
         private void CommonVisit(WikiEntry entry)
         {
-            entry.MarkdownPath.Replace(oldPath, renamedPath);
+            entry.SourcePath.Replace(oldPath, renamedPath);
             entry.WikiPath.Replace(oldPath, renamedPath);
             entry.WikiUrl.Replace(oldPath, renamedPath);
         }

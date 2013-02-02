@@ -1,4 +1,4 @@
-﻿namespace Icklewik.Core
+﻿namespace Icklewik.Core.Model
 {
     public class WikiPage : WikiEntry
     {

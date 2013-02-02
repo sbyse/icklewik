@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
-namespace Icklewik.Core
+
+namespace Icklewik.Core.Model
 {
     public class WikiDirectory : WikiEntry
     {

@@ -6,3 +6,10 @@
  }
 
 <h1>Hello SITE!</h1>
+
+<ul>
+@foreach (var pair in Model.SiteMap)
+{
+    <li>@pair.Item1 - @pair.Item2</li>
+}
+</ul>

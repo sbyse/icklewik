@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Icklekwik.Server.ViewModels.Wiki;
 using Icklewik.Core;
+using Icklewik.Core.Model;
 using Nancy;
 
 namespace Icklekwik.Server
@@ -22,14 +23,16 @@ namespace Icklekwik.Server
             // add top level "site" route
             Get["/{site}"] = parameters =>
                 {
-                    WikiConfig wikiConfig;
-                    if (config.TryGetConfig(parameters["site"], out wikiConfig))
+                    WikiConfig wikiConfig = null;
+                    SlaveRepository slaveRepository = null;
+                    if (config.TryGetConfig(parameters["site"], out wikiConfig) &&
+                        config.TryGetRepository(parameters["site"], out slaveRepository))
                     {
                         SiteModel model = new SiteModel()
                         {
                             IsPartialView = Request.Query.isPartial,
                             WikiUrl = "/",
-                            SiteMap = null // TODO: Finish me
+                            SiteMap = slaveRepository.Model.AvailableAssets.Select(a => new Tuple<string, string>(a, "Details"))
                         };
 
                         Context.ViewBag.SiteName = wikiConfig.SiteName;

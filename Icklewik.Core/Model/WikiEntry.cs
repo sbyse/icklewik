@@ -1,11 +1,11 @@
 ﻿using System;
 
-namespace Icklewik.Core
+namespace Icklewik.Core.Model
 {
     public abstract class WikiEntry
     {
         // relative path to source file
-        public string MarkdownPath { get; set; }
+        public string SourcePath { get; set; }
 
         // relative path to wiki page (where it's stored on the file system)
         public string WikiPath { get; set; }
