@@ -1,0 +1,6 @@
+Model
+=====
+
+1. Add readonly versions of WikiModel and WikiEntry. Only readonly versions should be emitted / surfaced from the repositories
+2. Alter WikiRepository and MasterRepository so that all "Add/Update/Delete" methods are protected or private and only called by a registered IWikiModelEventSource (like the slave repository already is)
+	- Alternatively just have the MasterRepository, encapsulate its event loop and provide thread-safe async getter methods

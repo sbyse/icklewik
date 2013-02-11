@@ -66,6 +66,7 @@
     <Compile Include="Model\MasterRepository.cs" />
     <Compile Include="Model\SlaveRepository.cs" />
     <Compile Include="Model\RenameVisitor.cs" />
+    <Compile Include="PathHelper.cs" />
     <Compile Include="WikiConfig.cs" />
     <Compile Include="Model\WikiDirectory.cs" />
     <Compile Include="IDialogue.cs" />

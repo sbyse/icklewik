@@ -17,6 +17,8 @@ namespace Icklewik.Core.Model
         {
         }
 
+        public event Action EventSourceStarted;
+
         public event Action<object, WikiRepositoryEventArgs> PageAdded;
         public event Action<object, WikiRepositoryEventArgs> PageUpdated;
         public event Action<object, WikiRepositoryEventArgs> PageDeleted;
@@ -30,16 +32,21 @@ namespace Icklewik.Core.Model
         public void Init(string rootSourcePath, string rootWikiPath, IEnumerable<string> initialFiles)
         {
             // create the root directory as as special case
-            AddDirectory(GetFullPath(rootSourcePath), new RootInfo { RootWikiPath = GetFullPath(rootWikiPath) });
+            AddDirectory(PathHelper.GetFullPath(rootSourcePath), new RootInfo { RootWikiPath = PathHelper.GetFullPath(rootWikiPath) });
 
             // iterate over all directories and add all relevant files to the model (which will fire the relevant events and prompt the
             // generator to generate the wiki itself)
-            foreach (string markdownFilePath in initialFiles.Select(path => GetFullPath(path)))
+            foreach (string markdownFilePath in initialFiles.Select(path => PathHelper.GetFullPath(path)))
             {
                 if (!UnderlyingModel.PathComparer.Equals(markdownFilePath, UnderlyingModel.RootSourcePath))
                 {
                     AddPage(markdownFilePath);
                 }
+            }
+
+            if (EventSourceStarted != null)
+            {
+                EventSourceStarted();
             }
         }
 
@@ -87,14 +94,12 @@ namespace Icklewik.Core.Model
         {
             if (eventToFire != null)
             {
-                eventToFire(this, new WikiRepositoryEventArgs
-                {
-                    SourcePath = entry.SourcePath,
-                    WikiPath = entry.WikiPath,
-                    WikiUrl = entry.WikiUrl,
-                    OldSourcePath = oldSourcePath,
-                    OldWikiPath = oldWikiPath
-                });
+                eventToFire(this, new WikiRepositoryEventArgs(
+                    sourcePath: entry.SourcePath,
+                    wikiPath: entry.WikiPath,
+                    wikiUrl: entry.WikiUrl,
+                    oldSourcePath: oldSourcePath,
+                    oldWikiPath: oldWikiPath));
             }
         }
     }

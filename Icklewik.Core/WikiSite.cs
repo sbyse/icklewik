@@ -50,6 +50,8 @@ namespace Icklewik.Core
             siteGeneratorScheduler = new EventLoopScheduler();
         }
 
+        public event Action EventSourceStarted;
+
         // We expose the model events for others to listen to, they are forwarded on from this
         public event Action<object, WikiRepositoryEventArgs> PageAdded;
         public event Action<object, WikiRepositoryEventArgs> PageUpdated;
@@ -66,6 +68,30 @@ namespace Icklewik.Core
             get
             {
                 return wikiConfig.SiteName;
+            }
+        }
+
+        /// <summary>
+        /// Represents the file system location at the top of the source tree
+        /// </summary>
+        public string RootSourcePath
+        {
+            get
+            {
+                return repository.RootSourcePath;
+            }
+        }
+
+        /// <summary>
+        /// Represents the file system location that holds the generated wiki
+        /// files. The files in this location should be treated as temporary and will
+        /// be regenerated in response to changes in the root source path
+        /// </summary>
+        public string RootWikiPath
+        {
+            get
+            {
+                return repository.RootWikiPath;
             }
         }
 
@@ -102,6 +128,11 @@ namespace Icklewik.Core
             // Begin watching the file system
             fileWatcher.EnableRaisingEvents = true;
             directoryWatcher.EnableRaisingEvents = true;
+
+            if (EventSourceStarted != null)
+            {
+                EventSourceStarted();
+            }
         }
 
         public void Dispose()

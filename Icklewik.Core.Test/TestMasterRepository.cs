@@ -7,7 +7,10 @@ using Xunit;
 namespace Icklewik.Core.Test
 {
     /// <summary>
-    /// Tests the model without actually needing to add files to the file system
+    /// Tests the master repository without actually needing to add files to the file system
+    /// 
+    /// MasterRepository does not provide access to the internal model but we can test performance
+    /// by observing the emitted events
     /// </summary>
     public class TestMasterRepository
     {

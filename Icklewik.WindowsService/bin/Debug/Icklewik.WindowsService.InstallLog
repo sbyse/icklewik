@@ -96,3 +96,46 @@ Removing EventLog source Icklewik.
 Service Icklewik is being removed from the system...
 Service Icklewik was successfully removed from the system.
 Attempt to stop service Icklewik.
+Uninstalling assembly 'D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.exe'.
+Affected parameters are:
+   u = 
+   logfile = D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.InstallLog
+   assemblypath = D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.exe
+Removing EventLog source Icklewik.
+Warning: The source Icklewik is not registered on the local machine.
+Service Icklewik is being removed from the system...
+An exception occurred during the uninstallation of the Icklewik.WindowsService.ServiceInstaller installer.
+System.ComponentModel.Win32Exception: The specified service does not exist as an installed service
+An exception occurred while uninstalling. This exception will be ignored and the uninstall will continue. However, the application might not be fully uninstalled after the uninstall is complete.
+See the contents of the log file for the D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.exe assembly's progress.
+The file is located at D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.InstallLog.
+Rolling back assembly 'D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.exe'.
+Affected parameters are:
+   logtoconsole = 
+   u = 
+   logfile = D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.InstallLog
+   assemblypath = D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.exe
+Installing assembly 'D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.exe'.
+Affected parameters are:
+   i = 
+   logfile = D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.InstallLog
+   assemblypath = D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.exe
+Installing service Icklewik...
+Service Icklewik has been successfully installed.
+Creating EventLog source Icklewik in log Application...
+See the contents of the log file for the D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.exe assembly's progress.
+The file is located at D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.InstallLog.
+Committing assembly 'D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.exe'.
+Affected parameters are:
+   i = 
+   logfile = D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.InstallLog
+   assemblypath = D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.exe
+   logtoconsole = 
+Uninstalling assembly 'D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.exe'.
+Affected parameters are:
+   u = 
+   logfile = D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.InstallLog
+   assemblypath = D:\code\github\icklewik\Icklewik.WindowsService\bin\Debug\Icklewik.WindowsService.exe
+Removing EventLog source Icklewik.
+Service Icklewik is being removed from the system...
+Service Icklewik was successfully removed from the system.

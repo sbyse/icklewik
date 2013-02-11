@@ -10,20 +10,34 @@ namespace Icklewik.Core.Model
 {
     public class WikiRepositoryEventArgs : EventArgs
     {
-        // used for "move" events only
-        public string OldSourcePath { get; set; }
+        public WikiRepositoryEventArgs(
+            string oldSourcePath,
+            string oldWikiPath,
+            string sourcePath,
+            string wikiPath,
+            string wikiUrl)
+        {
+            OldSourcePath = oldSourcePath;
+            OldWikiPath = oldWikiPath;
+            SourcePath = sourcePath;
+            WikiPath = wikiPath;
+            WikiUrl = wikiUrl;
+        }
 
         // used for "move" events only
-        public string OldWikiPath { get; set; }
+        public string OldSourcePath { get; private set; }
+
+        // used for "move" events only
+        public string OldWikiPath { get; private set; }
 
         // relative path to source file
-        public string SourcePath { get; set; }
+        public string SourcePath { get; private set; }
 
         // relative path to wiki page (where it's stored on the file system)
-        public string WikiPath { get; set; }
+        public string WikiPath { get; private set; }
 
         // relative url to wiki page
-        public string WikiUrl { get; set; }
+        public string WikiUrl { get; private set; }
     }
 
     public interface ILockPolicy
@@ -108,6 +122,30 @@ namespace Icklewik.Core.Model
             );
         }
 
+        /// <summary>
+        /// Represents the file system location at the top of the source tree
+        /// </summary>
+        public string RootSourcePath
+        {
+            get
+            {
+                return UnderlyingModel.RootSourcePath;
+            }
+        }
+
+        /// <summary>
+        /// Represents the file system location that holds the generated wiki
+        /// files. The files in this location should be treated as temporary and will
+        /// be regenerated in response to changes in the root source path
+        /// </summary>
+        public string RootWikiPath
+        {
+            get
+            {
+                return UnderlyingModel.RootWikiPath;
+            }
+        }
+
         // TODO: Need this to be made optionally available and protected
         // model, this represents the current state of the wiki, use with care
         protected WikiModel UnderlyingModel { get; private set; }
@@ -115,7 +153,7 @@ namespace Icklewik.Core.Model
         public void AddPage(string fullPath)
         {
             // make sure we've got the full path
-            fullPath = GetFullPath(fullPath);
+            fullPath = PathHelper.GetFullPath(fullPath);
 
             Debug.Assert(!UnderlyingModel.ContainsAsset(fullPath));
 
@@ -157,7 +195,7 @@ namespace Icklewik.Core.Model
         public void UpdatePage(string fullPath)
         {
             // make sure we've got the full path
-            fullPath = GetFullPath(fullPath);
+            fullPath = PathHelper.GetFullPath(fullPath);
 
             Debug.Assert(UnderlyingModel.ContainsAsset(fullPath));
 
@@ -174,7 +212,7 @@ namespace Icklewik.Core.Model
         public void DeletePage(string fullPath)
         {            
             // make sure we've got the full path
-            fullPath = GetFullPath(fullPath);
+            fullPath = PathHelper.GetFullPath(fullPath);
 
             Debug.Assert(UnderlyingModel.ContainsAsset(fullPath));
 
@@ -188,8 +226,8 @@ namespace Icklewik.Core.Model
         public void RenamePage(string oldFullPath, string newFullPath)
         {
             // make sure we've got the full paths
-            oldFullPath = GetFullPath(oldFullPath);
-            newFullPath = GetFullPath(newFullPath);
+            oldFullPath = PathHelper.GetFullPath(oldFullPath);
+            newFullPath = PathHelper.GetFullPath(newFullPath);
 
             // it's possible that the file rename could bring the file
             // into scope (i.e. if the file extension changes)
@@ -226,10 +264,13 @@ namespace Icklewik.Core.Model
 
         public void AddDirectory(string fullPath)
         {
-            // make sure we've got the full paths
-            //fullPath = GetFullPath(fullPath);
+            // NOTE: Adding a directory does nothing, we are not interested in empty
+            // directories, only the files they contain
 
-            //Debug.Assert(!wikiEntryMap.ContainsKey(fullPath));
+            // make sure we've got the full paths
+            //fullPath = PathHelper.GetFullPath(fullPath);
+
+            //Debug.Assert(!UnderlyingModel.ContainsAsset(fullPath));
 
             //AddDirectory(fullPath, null);
         }
@@ -237,7 +278,7 @@ namespace Icklewik.Core.Model
         public void UpdateDirectory(string fullPath)
         {
             // make sure we've got the full paths
-            fullPath = GetFullPath(fullPath);
+            fullPath = PathHelper.GetFullPath(fullPath);
 
             Debug.Assert(UnderlyingModel.ContainsAsset(fullPath));
 
@@ -254,7 +295,7 @@ namespace Icklewik.Core.Model
         public void DeleteDirectory(string fullPath)
         {
             // make sure we've got the full paths
-            fullPath = GetFullPath(fullPath);
+            fullPath = PathHelper.GetFullPath(fullPath);
 
             WikiEntry entry;
             if (UnderlyingModel.TryGetAsset(fullPath, out entry))
@@ -266,8 +307,8 @@ namespace Icklewik.Core.Model
         public void RenameDirectory(string oldFullPath, string newFullPath)
         {            
             // make sure we've got the full paths
-            oldFullPath = GetFullPath(oldFullPath);
-            newFullPath = GetFullPath(newFullPath);
+            oldFullPath = PathHelper.GetFullPath(oldFullPath);
+            newFullPath = PathHelper.GetFullPath(newFullPath);
 
             WikiEntry entry;
             if (UnderlyingModel.TryGetAsset(oldFullPath, out entry))
@@ -301,16 +342,6 @@ namespace Icklewik.Core.Model
         protected abstract void HandleDirectoryUpdated(WikiDirectory page);
         protected abstract void HandleDirectoryDeleted(WikiDirectory page);
         protected abstract void HandleDirectoryMoved(WikiDirectory page, string oldSourcePath, string oldWikiPath);
-
-        /// <summary>
-        /// Generates the canonical full path, use for all further comparisons, indices etc
-        /// </summary>
-        /// <param name="path">Path, can be relative (to the working directory) or a full path. File or directory</param>
-        /// <returns>Canonical full path</returns>
-        protected string GetFullPath(string path)
-        {
-            return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar);
-        }
 
         /// <summary>
         /// Adds a directory to the model.
@@ -409,7 +440,7 @@ namespace Icklewik.Core.Model
         /// <summary>
         /// Generates the wiki path (that is the relative path, based on the wiki's root)
         /// </summary>
-        /// <param name="fullPath">Canonical full path, generated by GetFullPath (above)</param>
+        /// <param name="fullPath">Canonical full path, generated by PathHelper.GetFullPath</param>
         /// <returns>Wiki's relative path</returns>
         private string GetWikiPath(string fullPath)
         {
