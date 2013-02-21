@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Configuration.Install;
 using System.IO;
 using System.ServiceProcess;
+using System.Threading;
 using Icklekwik.Server;
 using Icklewik.Core;
 using Icklewik.Filters;
@@ -117,6 +118,8 @@ namespace Icklewik.WindowsService
 
         static void StartUp(string[] args)
         {
+            Thread.CurrentThread.Name = "Main";
+
             string coreDirectory = "D:\\ickletest";
 
             File.WriteAllText(Path.Combine(coreDirectory, "index.md"), "Hello World");
@@ -130,8 +133,8 @@ namespace Icklewik.WindowsService
                     new WikiConfig()
                     {
                         SiteName = "Tester",
-                        RootSourcePath = coreDirectory,
-                        RootWikiPath = Path.Combine(coreDirectory, "wiki"),
+                        RootSourcePath = PathHelper.GetFullPath(coreDirectory),
+                        RootWikiPath = PathHelper.GetFullPath(coreDirectory, "wiki"),
                         Convertor = new Convertor(new MarkdownSharpDialogue())
                     } 
                 });
@@ -150,6 +153,8 @@ namespace Icklewik.WindowsService
             startup = new ServerStartup(serverConfig, true, "password"); // this program's Startup.cs class
             
             startup.Start();
+
+            Thread.Sleep(100);
 
             // add another page
             File.WriteAllText(Path.Combine(coreDirectory, "firstFile.md"), "Hello Again");

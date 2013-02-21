@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using Icklewik.Core;
+using Icklewik.Core.Site;
 
 namespace Icklewik.ConsoleApp
 {

@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive;
 using System.Reactive.Concurrency;
+using System.Reactive.Linq;
 using System.Text;
+using System.Threading;
 
 namespace Icklewik.Core.Model
 {
@@ -32,19 +35,22 @@ namespace Icklewik.Core.Model
         {
             // subscripe to the event source and make sure our local model is updated whenever
             // an event occurs
-            EventHelper.SubscribeToEvent<WikiRepositoryEventArgs>(eventSource, "PageAdded", scheduler, (args) => AddPage(args.SourcePath), (args) => args.SourcePath);
-            EventHelper.SubscribeToEvent<WikiRepositoryEventArgs>(eventSource, "PageUpdated", scheduler, (args) => UpdatePage(args.SourcePath), (args) => args.SourcePath);
-            EventHelper.SubscribeToEvent<WikiRepositoryEventArgs>(eventSource, "PageDeleted", scheduler, (args) => DeletePage(args.SourcePath), (args) => args.SourcePath);
-            EventHelper.SubscribeToEvent<WikiRepositoryEventArgs>(eventSource, "PageMoved", scheduler, (args) => RenamePage(args.OldSourcePath, args.SourcePath), (args) => args.SourcePath);
-            EventHelper.SubscribeToEvent<WikiRepositoryEventArgs>(eventSource, "DirectoryAdded", scheduler, (args) => AddDirectory(args.SourcePath), (args) => args.SourcePath);
-            EventHelper.SubscribeToEvent<WikiRepositoryEventArgs>(eventSource, "DirectoryUpdated", scheduler, (args) => UpdateDirectory(args.SourcePath), (args) => args.SourcePath);
-            EventHelper.SubscribeToEvent<WikiRepositoryEventArgs>(eventSource, "DirectoryDeleted", scheduler, (args) => DeleteDirectory(args.SourcePath), (args) => args.SourcePath);
-            EventHelper.SubscribeToEvent<WikiRepositoryEventArgs>(eventSource, "DirectoryMoved", scheduler, (args) => RenameDirectory(args.OldSourcePath, args.SourcePath), (args) => args.SourcePath);
+            EventHelper.SubscribeToWikiEvent<WikiModelEventArgs>(eventSource, "PageAdded", scheduler, (args) => AddPage(args.SourcePath));
+            EventHelper.SubscribeToWikiEvent<WikiModelEventArgs>(eventSource, "PageUpdated", scheduler, (args) => UpdatePage(args.SourcePath));
+            EventHelper.SubscribeToWikiEvent<WikiModelEventArgs>(eventSource, "PageDeleted", scheduler, (args) => DeletePage(args.SourcePath));
+            EventHelper.SubscribeToWikiEvent<WikiModelEventArgs>(eventSource, "PageMoved", scheduler, (args) => RenamePage(args.OldSourcePath, args.SourcePath));
+            EventHelper.SubscribeToWikiEvent<WikiModelEventArgs>(eventSource, "DirectoryAdded", scheduler, (args) => AddDirectory(args.SourcePath));
+            EventHelper.SubscribeToWikiEvent<WikiModelEventArgs>(eventSource, "DirectoryUpdated", scheduler, (args) => UpdateDirectory(args.SourcePath));
+            EventHelper.SubscribeToWikiEvent<WikiModelEventArgs>(eventSource, "DirectoryDeleted", scheduler, (args) => DeleteDirectory(args.SourcePath));
+            EventHelper.SubscribeToWikiEvent<WikiModelEventArgs>(eventSource, "DirectoryMoved", scheduler, (args) => RenameDirectory(args.OldSourcePath, args.SourcePath));
 
-            eventSource.EventSourceStarted += () =>
+            eventSource.EventSourceStarted += (target, args) =>
                 {
-                    // assume the root paths has already been set
-                    AddDirectory(PathHelper.GetFullPath(eventSource.RootSourcePath), new RootInfo { RootWikiPath = PathHelper.GetFullPath(eventSource.RootWikiPath) });
+                    scheduler.Schedule(() =>
+                        {
+                            // assume the root paths has already been set
+                            AddDirectory(PathHelper.GetFullPath(eventSource.RootSourcePath), new RootInfo { RootWikiPath = PathHelper.GetFullPath(eventSource.RootWikiPath) });
+                        });
                 };
         }
 

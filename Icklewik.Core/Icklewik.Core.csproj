@@ -57,6 +57,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EventHelper.cs" />
+    <Compile Include="EventSourceInitialisedArgs.cs" />
     <Compile Include="IContentFilter.cs" />
     <Compile Include="Convertor.cs" />
     <Compile Include="Model\DeleteVisitor.cs" />
@@ -66,18 +67,22 @@
     <Compile Include="Model\MasterRepository.cs" />
     <Compile Include="Model\SlaveRepository.cs" />
     <Compile Include="Model\RenameVisitor.cs" />
+    <Compile Include="Model\WikiModelEventArgs.cs" />
     <Compile Include="PathHelper.cs" />
+    <Compile Include="Site\IWikiSiteEventSource.cs" />
+    <Compile Include="Site\WikiSiteEventArgs.cs" />
     <Compile Include="WikiConfig.cs" />
     <Compile Include="Model\WikiDirectory.cs" />
     <Compile Include="IDialogue.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Model\WikiEntry.cs" />
-    <Compile Include="WikiGenerator.cs" />
+    <Compile Include="Site\WikiGenerator.cs" />
     <Compile Include="Model\WikiModel.cs" />
     <Compile Include="Model\WikiPathComparer.cs" />
     <Compile Include="Model\WikiRepository.cs" />
     <Compile Include="Model\WikiPage.cs" />
-    <Compile Include="WikiSite.cs" />
+    <Compile Include="Site\WikiSite.cs" />
+    <Compile Include="WikiEventArgs.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

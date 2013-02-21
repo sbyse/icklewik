@@ -4,3 +4,5 @@ Model
 1. Add readonly versions of WikiModel and WikiEntry. Only readonly versions should be emitted / surfaced from the repositories
 2. Alter WikiRepository and MasterRepository so that all "Add/Update/Delete" methods are protected or private and only called by a registered IWikiModelEventSource (like the slave repository already is)
 	- Alternatively just have the MasterRepository, encapsulate its event loop and provide thread-safe async getter methods
+
+3. Investigate issue with (slightly) slow subscription handlers on the EventLoopScheduler, for example make ModelSyncScheduler and NotificaitonScheduler point to the same reference and replace the call to ChangeNotifier with a Sleep(100). It causes events to be handled out of sync which isn't what I was expecting.

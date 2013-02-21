@@ -10,19 +10,27 @@ namespace Icklewik.Core.Test
 {
     public class TestEventSource : IWikiModelEventSource
     {
-        public event Action EventSourceStarted;
+        public event Action<object, EventSourceInitialisedArgs> EventSourceStarted;
 
-        public event Action<object, WikiRepositoryEventArgs> PageAdded;
-        public event Action<object, WikiRepositoryEventArgs> PageUpdated;
-        public event Action<object, WikiRepositoryEventArgs> PageDeleted;
-        public event Action<object, WikiRepositoryEventArgs> PageMoved;
-        public event Action<object, WikiRepositoryEventArgs> DirectoryAdded;
-        public event Action<object, WikiRepositoryEventArgs> DirectoryUpdated;
-        public event Action<object, WikiRepositoryEventArgs> DirectoryDeleted;
-        public event Action<object, WikiRepositoryEventArgs> DirectoryMoved;
+        public event Action<object, WikiModelEventArgs> PageAdded;
+        public event Action<object, WikiModelEventArgs> PageUpdated;
+        public event Action<object, WikiModelEventArgs> PageDeleted;
+        public event Action<object, WikiModelEventArgs> PageMoved;
+        public event Action<object, WikiModelEventArgs> DirectoryAdded;
+        public event Action<object, WikiModelEventArgs> DirectoryUpdated;
+        public event Action<object, WikiModelEventArgs> DirectoryDeleted;
+        public event Action<object, WikiModelEventArgs> DirectoryMoved;
 
         public string RootSourcePath { get; set; }
         public string RootWikiPath { get; set; }
+
+        public void FireEventSourceStarted()
+        {
+            if (EventSourceStarted != null)
+            {
+                EventSourceStarted(this, new EventSourceInitialisedArgs());
+            }
+        }
 
         public void FirePageAdded(WikiPage page)
         {
@@ -64,11 +72,11 @@ namespace Icklewik.Core.Test
             FireEvent(DirectoryMoved, page, oldSourcePath, oldWikiPath);
         }
 
-        private void FireEvent(Action<object, WikiRepositoryEventArgs> eventToFire, WikiEntry entry, string oldSourcePath = "", string oldWikiPath = "")
+        private void FireEvent(Action<object, WikiModelEventArgs> eventToFire, WikiEntry entry, string oldSourcePath = "", string oldWikiPath = "")
         {
             if (eventToFire != null)
             {
-                eventToFire(this, new WikiRepositoryEventArgs(
+                eventToFire(this, new WikiModelEventArgs(
                     sourcePath: entry.SourcePath,
                     wikiPath: entry.WikiPath,
                     wikiUrl: entry.WikiUrl,
@@ -96,6 +104,8 @@ namespace Icklewik.Core.Test
 
             // initialise the model
             repository.Init(eventSource, Scheduler.Immediate);
+
+            eventSource.FireEventSourceStarted();
         }
 
         [Fact]

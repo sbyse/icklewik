@@ -7,17 +7,17 @@ namespace Icklewik.Core.Model
 {
     public interface IWikiModelEventSource
     {
-        event Action EventSourceStarted;
+        event Action<object, EventSourceInitialisedArgs> EventSourceStarted;
 
-        event Action<object, WikiRepositoryEventArgs> PageAdded;
-        event Action<object, WikiRepositoryEventArgs> PageUpdated;
-        event Action<object, WikiRepositoryEventArgs> PageDeleted;
-        event Action<object, WikiRepositoryEventArgs> PageMoved;
+        event Action<object, WikiModelEventArgs> PageAdded;
+        event Action<object, WikiModelEventArgs> PageUpdated;
+        event Action<object, WikiModelEventArgs> PageDeleted;
+        event Action<object, WikiModelEventArgs> PageMoved;
 
-        event Action<object, WikiRepositoryEventArgs> DirectoryAdded;
-        event Action<object, WikiRepositoryEventArgs> DirectoryUpdated;
-        event Action<object, WikiRepositoryEventArgs> DirectoryDeleted;
-        event Action<object, WikiRepositoryEventArgs> DirectoryMoved;
+        event Action<object, WikiModelEventArgs> DirectoryAdded;
+        event Action<object, WikiModelEventArgs> DirectoryUpdated;
+        event Action<object, WikiModelEventArgs> DirectoryDeleted;
+        event Action<object, WikiModelEventArgs> DirectoryMoved;
 
         /// <summary>
         /// Represents the file system location at the top of the source tree

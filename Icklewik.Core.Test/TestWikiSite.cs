@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using Icklewik.Core.Site;
 using Xunit;
 
 namespace Icklewik.Core.Test
@@ -45,21 +46,21 @@ namespace Icklewik.Core.Test
             site = new WikiSite(new WikiConfig()
             {
                 SiteName = "Tester",
-                RootSourcePath = ".",
-                RootWikiPath = Path.Combine(".", "wiki"),
+                RootSourcePath = PathHelper.GetFullPath("."),
+                RootWikiPath = PathHelper.GetFullPath(".", "wiki"),
                 Convertor = new Convertor(new MarkdownSharpDialogue())
             });
 
             // setup event handlers
-            site.DirectoryAdded += (source, args) => createdDirectories.Add(args.SourcePath);
-            site.DirectoryUpdated += (source, args) => updatedDirectories.Add(args.SourcePath);
-            site.DirectoryDeleted += (source, args) => deletedDirectories.Add(args.SourcePath);
-            site.DirectoryMoved += (source, args) => movedDirectories.Add(args.SourcePath);
+            site.DirectoryAdded += (source, args) => createdDirectories.Add(args.WikiUrl);
+            site.DirectoryUpdated += (source, args) => updatedDirectories.Add(args.WikiUrl);
+            site.DirectoryDeleted += (source, args) => deletedDirectories.Add(args.WikiUrl);
+            site.DirectoryMoved += (source, args) => movedDirectories.Add(args.WikiUrl);
 
-            site.PageAdded += (source, args) => createdPages.Add(args.SourcePath);
-            site.PageUpdated += (source, args) => updatedPages.Add(args.SourcePath);
-            site.PageDeleted += (source, args) => deletedPages.Add(args.SourcePath);
-            site.PageMoved += (source, args) => movedPages.Add(args.SourcePath);
+            site.PageAdded += (source, args) => createdPages.Add(args.WikiUrl);
+            site.PageUpdated += (source, args) => updatedPages.Add(args.WikiUrl);
+            site.PageDeleted += (source, args) => deletedPages.Add(args.WikiUrl);
+            site.PageMoved += (source, args) => movedPages.Add(args.WikiUrl);
 
             site.Start();
 
