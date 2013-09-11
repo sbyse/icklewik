@@ -2,7 +2,7 @@
 
 namespace Icklewik.Core.Model
 {
-    public abstract class WikiEntry
+    public abstract class WikiEntry : IWikiEntry
     {
         // relative path to source file
         public string SourcePath { get; set; }

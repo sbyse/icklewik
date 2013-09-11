@@ -19,7 +19,7 @@ namespace Icklewik.Core
                     args => args.Id);
         }
 
-        public static void SubscribeToSampledEvent<TEventArgs>(object target, string eventName, IScheduler scheduler, Action<TEventArgs> eventAction, Func<TEventArgs, string> identityFunc, TimeSpan sampleTimeSpan) where TEventArgs : EventArgs
+        public static void SubscribeToEvent<TEventArgs>(object target, string eventName, IScheduler scheduler, Action<TEventArgs> eventAction, Func<TEventArgs, string> identityFunc/*, TimeSpan sampleTimeSpan*/) where TEventArgs : EventArgs
         {
             // TODO: Investigate
             // experimental method, tries to group identical events together so we don't have to worry about multiple firings

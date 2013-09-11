@@ -18,8 +18,19 @@ namespace Icklewik.Core.Model
 
         private WikiPathComparer pathComparer;
 
-        // we also keep all entries in a map for simple retrieval of specific entries
+        // we also keep all entries in a map for simple retrieval of specific entries.
+        // key is full path of source file
         private IDictionary<string, WikiEntry> wikiEntryMap;
+
+        // cached immutable map, this is destroyed everytime any changes are made and
+        // recreated on request
+        // key is full path of source file
+        private IDictionary<string, ImmutableWikiEntry> lazyImmutableWikiEntrySourcePathMap;
+        
+        // same by key is wiki url
+        private IDictionary<string, ImmutableWikiEntry> lazyImmutableWikiEntryWikiUrlMap;
+
+        private object locker = new object();
 
         public WikiModel()
         {
@@ -60,42 +71,199 @@ namespace Icklewik.Core.Model
             }
         }
 
-        public IEnumerable<string> AvailableAssets
+        public IEnumerable<string> AvailableImmutableAssetSourcePaths
         {
             get
             {
-                return wikiEntryMap.Keys;
+                lock (locker)
+                {
+                    CreateImmutableMaps();
+                    return lazyImmutableWikiEntrySourcePathMap.Keys;
+                }
             }
         }
 
-        public bool ContainsAsset(string fullPath)
+        public IEnumerable<ImmutableWikiEntry> GetImmutableWikiEntries()
         {
-            return wikiEntryMap.ContainsKey(fullPath);
+            lock (locker)
+            {
+                CreateImmutableMaps();
+                return lazyImmutableWikiEntrySourcePathMap.Values;
+            }
         }
 
-        public WikiEntry GetAsset(string fullPath)
+        public ImmutableWikiEntry GetImmutableAssetBySourcePath(string fullPath)
+        {
+            lock (locker)
+            {
+                CreateImmutableMaps();
+                return lazyImmutableWikiEntrySourcePathMap[fullPath];
+            }
+        }
+
+        public bool ContainsAssetBySourcePath(string fullPath)
+        {
+            lock (locker)
+            {
+                CreateImmutableMaps();
+                return lazyImmutableWikiEntrySourcePathMap.ContainsKey(fullPath);
+            }
+        }
+
+        public ImmutableWikiEntry GetImmutableAssetByWikiUrl(string url)
+        {
+            lock (locker)
+            {
+                CreateImmutableMaps();
+                return lazyImmutableWikiEntryWikiUrlMap[url];
+            }
+        }
+
+        public bool ContainsAssetByWikiUrl(string url)
+        {
+            lock (locker)
+            {
+                CreateImmutableMaps();
+                return lazyImmutableWikiEntryWikiUrlMap.ContainsKey(url);
+            }
+        }
+
+        // TODO: Are these two methods required?
+        public WikiEntry UnsafeGetAsset(string fullPath)
         {
             return wikiEntryMap[fullPath];
         }
 
-        public bool TryGetAsset(string fullPath, out WikiEntry entry)
+        public bool UnsafeTryGetAssetBySourcePath(string fullPath, out WikiEntry entry)
         {
             return wikiEntryMap.TryGetValue(fullPath, out entry);
         }
 
         public void AddAsset(string fullPath, WikiEntry entry)
         {
+            // add mutable asset
             wikiEntryMap[fullPath] = entry;
+            DestroyImmutableMaps();
         }
 
         public void RemoveAsset(string fullPath)
         {
             wikiEntryMap.Remove(fullPath);
+            DestroyImmutableMaps();
         }
 
         public void SetRootDirectory(WikiDirectory root)
         {
             rootDirectory = root;
         }
+
+        private void DestroyImmutableMaps()
+        {
+            lock (locker)
+            {
+                lazyImmutableWikiEntrySourcePathMap = null;
+                lazyImmutableWikiEntryWikiUrlMap = null;
+            }
+        }
+
+        private void CreateImmutableMaps()
+        {
+            if (lazyImmutableWikiEntrySourcePathMap == null && lazyImmutableWikiEntryWikiUrlMap == null)
+            {
+                // create immutable map from source map
+                ImmutableMapCreationVisitor visitor = new ImmutableMapCreationVisitor();
+
+                rootDirectory.Accept(visitor);
+
+                lazyImmutableWikiEntrySourcePathMap = visitor.CreateFinalSourcePathMap();
+                lazyImmutableWikiEntryWikiUrlMap = visitor.CreateFinalWikiUrlMap();
+            }
+        }
+    }
+
+    public class ImmutableMapCreationVisitor : IWikiEntryVisitor
+    {
+        Stack<WikiDirectory> directoryStack;
+
+        public ImmutableMapCreationVisitor()
+        {
+            directoryStack = new Stack<WikiDirectory>();
+        }
+
+        public void Visit(WikiDirectory directory)
+        {
+            // add to the stack
+            directoryStack.Push(directory);
+
+            foreach (var child in directory.Children)
+            {
+                child.Accept(this);
+            }
+        }
+
+        public void Visit(WikiPage page)
+        {
+            // do nothing
+        }
+
+        public IDictionary<string, ImmutableWikiEntry> CreateFinalSourcePathMap()
+        {
+            return CreateFinalMapBy(we => we.SourcePath);
+        }
+
+        public IDictionary<string, ImmutableWikiEntry> CreateFinalWikiUrlMap()
+        {
+            return CreateFinalMapBy(we => we.WikiUrl);
+        }
+
+
+        private IDictionary<string, ImmutableWikiEntry> CreateFinalMapBy(Func<IWikiEntry, string> keySelector)
+        {
+            IDictionary<string, ImmutableWikiEntry> map = new Dictionary<string, ImmutableWikiEntry>();
+            while (directoryStack.Any())
+            {
+                WikiDirectory directory = directoryStack.Pop();
+
+                IList<ImmutableWikiEntry> children = new List<ImmutableWikiEntry>();
+
+                foreach (WikiEntry mutableChild in directory.Children)
+                {
+                    if (mutableChild is WikiPage)
+                    {
+                        // create the child and add to the directory and to the map
+                        ImmutableWikiPage immutablePage = new ImmutableWikiPage(
+                            mutableChild.SourcePath,
+                            mutableChild.WikiPath,
+                            mutableChild.WikiUrl,
+                            mutableChild.LastUpdated,
+                            mutableChild.Depth);
+
+                        map[keySelector(mutableChild)] = immutablePage;
+                        children.Add(immutablePage);
+                    }
+                    else if (mutableChild is WikiDirectory)
+                    {
+                        // because we are traversing the branches of the tree from leaf to root
+                        // we can assume that any directory children have already been added to the
+                        // map
+                        children.Add(map[keySelector(mutableChild)]);
+                    }
+                }
+
+                // now add the directory itself
+                ImmutableWikiDirectory immutableDirectory = new ImmutableWikiDirectory(
+                    directory.SourcePath,
+                    directory.WikiPath,
+                    directory.WikiUrl,
+                    directory.LastUpdated,
+                    directory.Depth,
+                    children);
+
+                map[keySelector(immutableDirectory)] = immutableDirectory;
+            }
+
+            return map;
+        }
+
     }
 }

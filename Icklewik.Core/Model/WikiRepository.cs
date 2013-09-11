@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Icklewik.Core.Logging;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -118,23 +119,45 @@ namespace Icklewik.Core.Model
         // model, this represents the current state of the wiki, use with care
         protected WikiModel UnderlyingModel { get; private set; }
 
-        public void AddPage(string fullPath)
+        //
+        // Abstract methods dictate how to handle "model events"
+        //
+
+        protected abstract void HandlePageAdded(WikiPage page);
+        protected abstract void HandlePageUpdated(WikiPage page);
+        protected abstract void HandlePageDeleted(WikiPage page);
+        protected abstract void HandlePageMoved(WikiPage page, string oldSourcePath, string oldWikiPath, string oldWikiUrl);
+
+        protected abstract void HandleDirectoryAdded(WikiDirectory page);
+        protected abstract void HandleDirectoryUpdated(WikiDirectory page);
+        protected abstract void HandleDirectoryDeleted(WikiDirectory page);
+        protected abstract void HandleDirectoryMoved(WikiDirectory page, string oldSourcePath, string oldWikiPath, string oldWikiUrl);
+
+        //
+        // Protected methods, for use by derived classes
+        //
+
+        protected void AddPage(string fullPath)
         {
             // make sure we've got the full path
             fullPath = PathHelper.GetFullPath(fullPath);
 
-            Debug.Assert(!UnderlyingModel.ContainsAsset(fullPath));
+            if (UnderlyingModel.ContainsAssetBySourcePath(fullPath))
+            {
+                // page already exists
+                return;
+            }
 
             string parentPath = Path.GetDirectoryName(fullPath);
 
             // recursively add any directories between us and the closest ancestor
             // in the map
-            if (!UnderlyingModel.ContainsAsset(parentPath))
+            if (!UnderlyingModel.ContainsAssetBySourcePath(parentPath))
             {
                 AddDirectory(parentPath, null);
             }
 
-            WikiDirectory parent = UnderlyingModel.GetAsset(parentPath) as WikiDirectory;
+            WikiDirectory parent = UnderlyingModel.UnsafeGetAsset(parentPath) as WikiDirectory;
 
             WikiPage newPage = new WikiPage
             {
@@ -160,15 +183,19 @@ namespace Icklewik.Core.Model
             HandlePageAdded(newPage);
         }
 
-        public void UpdatePage(string fullPath)
+        protected void UpdatePage(string fullPath)
         {
             // make sure we've got the full path
             fullPath = PathHelper.GetFullPath(fullPath);
 
-            Debug.Assert(UnderlyingModel.ContainsAsset(fullPath));
+            if (!UnderlyingModel.ContainsAssetBySourcePath(fullPath))
+            {
+                // page doesn't exist
+                return;
+            }
 
             WikiEntry entry;
-            if (UnderlyingModel.TryGetAsset(fullPath, out entry))
+            if (UnderlyingModel.UnsafeTryGetAssetBySourcePath(fullPath, out entry))
             {
                 entry.LastUpdated = DateTime.UtcNow;
 
@@ -177,21 +204,21 @@ namespace Icklewik.Core.Model
             }
         }
 
-        public void DeletePage(string fullPath)
-        {            
+        protected void DeletePage(string fullPath)
+        {
+            Log.Instance.Log(string.Format("Deleting page {0}", fullPath));
+
             // make sure we've got the full path
             fullPath = PathHelper.GetFullPath(fullPath);
 
-            Debug.Assert(UnderlyingModel.ContainsAsset(fullPath));
-
             WikiEntry entry;
-            if (UnderlyingModel.TryGetAsset(fullPath, out entry))
+            if (UnderlyingModel.UnsafeTryGetAssetBySourcePath(fullPath, out entry))
             {
                 DeleteEntryCommon(entry);
             }
         }
 
-        public void RenamePage(string oldFullPath, string newFullPath)
+        protected void RenamePage(string oldFullPath, string newFullPath)
         {
             // make sure we've got the full paths
             oldFullPath = PathHelper.GetFullPath(oldFullPath);
@@ -202,16 +229,16 @@ namespace Icklewik.Core.Model
             // in that case this is just an add
 
             WikiEntry entry;
-            if (UnderlyingModel.TryGetAsset(oldFullPath, out entry))
+            if (UnderlyingModel.UnsafeTryGetAssetBySourcePath(oldFullPath, out entry))
             {
                 if (newFullPath.EndsWith(fileExtension))
                 {
                     var visitor = new RenameVisitor(
                         oldFullPath,
                         newFullPath,
-                        (oldSourcePath, oldWikiPath, page) =>
+                        (oldSourcePath, oldWikiPath, oldWikiUrl, page) =>
                         {
-                            HandlePageMoved(page, oldSourcePath, oldWikiPath);
+                            HandlePageMoved(page, oldSourcePath, oldWikiPath, oldWikiUrl);
                         });
 
                     entry.Accept(visitor);
@@ -230,7 +257,7 @@ namespace Icklewik.Core.Model
             }
         }
 
-        public void AddDirectory(string fullPath)
+        protected void AddDirectory(string fullPath)
         {
             // NOTE: Adding a directory does nothing, we are not interested in empty
             // directories, only the files they contain
@@ -243,15 +270,13 @@ namespace Icklewik.Core.Model
             //AddDirectory(fullPath, null);
         }
 
-        public void UpdateDirectory(string fullPath)
+        protected void UpdateDirectory(string fullPath)
         {
             // make sure we've got the full paths
             fullPath = PathHelper.GetFullPath(fullPath);
 
-            Debug.Assert(UnderlyingModel.ContainsAsset(fullPath));
-
             WikiEntry entry;
-            if (UnderlyingModel.TryGetAsset(fullPath, out entry))
+            if (UnderlyingModel.UnsafeTryGetAssetBySourcePath(fullPath, out entry))
             {
                 entry.LastUpdated = DateTime.UtcNow;
 
@@ -260,56 +285,44 @@ namespace Icklewik.Core.Model
             }
         }
 
-        public void DeleteDirectory(string fullPath)
+        protected void DeleteDirectory(string fullPath)
         {
+            Log.Instance.Log(string.Format("Deleting directory {0}", fullPath));
+
             // make sure we've got the full paths
             fullPath = PathHelper.GetFullPath(fullPath);
 
             WikiEntry entry;
-            if (UnderlyingModel.TryGetAsset(fullPath, out entry))
+            if (UnderlyingModel.UnsafeTryGetAssetBySourcePath(fullPath, out entry))
             {
                 DeleteEntryCommon(entry);
             }
         }
 
-        public void RenameDirectory(string oldFullPath, string newFullPath)
+        protected void RenameDirectory(string oldFullPath, string newFullPath)
         {            
             // make sure we've got the full paths
             oldFullPath = PathHelper.GetFullPath(oldFullPath);
             newFullPath = PathHelper.GetFullPath(newFullPath);
 
             WikiEntry entry;
-            if (UnderlyingModel.TryGetAsset(oldFullPath, out entry))
+            if (UnderlyingModel.UnsafeTryGetAssetBySourcePath(oldFullPath, out entry))
             {
                 var visitor = new RenameVisitor(
                     oldFullPath,
                     newFullPath,
-                    (oldSourcePath, oldWikiPath, page) =>
+                    (oldSourcePath, oldWikiPath, oldWikiUrl, page) =>
                     {
-                        HandlePageMoved(page, oldSourcePath, oldWikiPath);
+                        HandlePageMoved(page, oldSourcePath, oldWikiPath, oldWikiUrl);
                     },
-                    (oldSourcePath, oldWikiPath, directory) =>
+                    (oldSourcePath, oldWikiPath, oldWikiUrl, directory) =>
                     {
-                        HandleDirectoryMoved(directory, oldSourcePath, oldWikiPath);
+                        HandleDirectoryMoved(directory, oldSourcePath, oldWikiPath, oldWikiUrl);
                     });
 
                 entry.Accept(visitor);
             }
         }
-
-        //
-        // Abstract methods dictate how to handle "events"
-        //
-
-        protected abstract void HandlePageAdded(WikiPage page);
-        protected abstract void HandlePageUpdated(WikiPage page);
-        protected abstract void HandlePageDeleted(WikiPage page);
-        protected abstract void HandlePageMoved(WikiPage page, string oldSourcePath, string oldWikiPath);
-
-        protected abstract void HandleDirectoryAdded(WikiDirectory page);
-        protected abstract void HandleDirectoryUpdated(WikiDirectory page);
-        protected abstract void HandleDirectoryDeleted(WikiDirectory page);
-        protected abstract void HandleDirectoryMoved(WikiDirectory page, string oldSourcePath, string oldWikiPath);
 
         /// <summary>
         /// Adds a directory to the model.
@@ -325,12 +338,12 @@ namespace Icklewik.Core.Model
 
                 // recursively add any directories between us and the closest ancestor
                 // in the map
-                if (!UnderlyingModel.ContainsAsset(parentPath))
+                if (!UnderlyingModel.ContainsAssetBySourcePath(parentPath))
                 {
                     AddDirectory(parentPath, null);
                 }
 
-                parent = UnderlyingModel.GetAsset(parentPath) as WikiDirectory;
+                parent = UnderlyingModel.UnsafeGetAsset(parentPath) as WikiDirectory;
             }
 
             WikiDirectory newDirectory = new WikiDirectory

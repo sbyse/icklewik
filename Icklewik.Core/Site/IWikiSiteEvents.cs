@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Icklewik.Core.Site
 {
-    public interface IWikiSiteEventSource
+    public interface IWikiSiteEvents
     {
         event Action<object, WikiSiteEventArgs> PageAdded;
         event Action<object, WikiSiteEventArgs> PageUpdated;

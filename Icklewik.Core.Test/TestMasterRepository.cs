@@ -1,11 +1,76 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Icklewik.Core.Model;
+using Icklewik.Core.Source;
 using Xunit;
 
 namespace Icklewik.Core.Test
 {
+    public class TestSourceWatcher : IWikiSourceEvents
+    {
+        public event System.Action<object, WikiSourceEventArgs> FileAdded;
+        public event System.Action<object, WikiSourceEventArgs> FileUpdated;
+        public event System.Action<object, WikiSourceEventArgs> FileDeleted;
+        public event System.Action<object, WikiSourceEventArgs> FileMoved;
+
+        public event System.Action<object, WikiSourceEventArgs> DirectoryAdded;
+        public event System.Action<object, WikiSourceEventArgs> DirectoryUpdated;
+        public event System.Action<object, WikiSourceEventArgs> DirectoryDeleted;
+        public event System.Action<object, WikiSourceEventArgs> DirectoryMoved;
+
+        public void FireFileAdded(string fullPath)
+        {
+            FireEvent(FileAdded, fullPath);
+        }
+
+        public void FireFileUpdated(string fullPath)
+        {
+            FireEvent(FileUpdated, fullPath);
+        }
+
+        public void FireFileDeleted(string fullPath)
+        {
+            FireEvent(FileDeleted, fullPath);
+        }
+
+        public void FireFileMoved(string fullPath, string oldFullPath)
+        {
+            FireEvent(FileMoved, fullPath, oldFullPath);
+        }
+
+        public void FireDirectoryAdded(string fullPath)
+        {
+            FireEvent(DirectoryAdded, fullPath);
+        }
+
+        public void FireDirectoryUpdated(string fullPath)
+        {
+            FireEvent(DirectoryUpdated, fullPath);
+        }
+
+        public void FireDirectoryDeleted(string fullPath)
+        {
+            FireEvent(DirectoryDeleted, fullPath);
+        }
+
+        public void FireDirectoryMoved(string fullPath, string oldFullPath)
+        {
+            FireEvent(DirectoryMoved, fullPath, oldFullPath);
+        }
+
+        private void FireEvent(Action<object, WikiSourceEventArgs> eventToFire, string fullPath, string oldFullPath = "")
+        {
+            if (eventToFire != null)
+            {
+                eventToFire(this, new WikiSourceEventArgs(
+                    sourcePath: fullPath,
+                    oldSourcePath: oldFullPath));
+            }
+        }
+    }
+
     /// <summary>
     /// Tests the master repository without actually needing to add files to the file system
     /// 
@@ -24,6 +89,7 @@ namespace Icklewik.Core.Test
         private IList<string> deletedPages;
         private IList<string> movedPages;
 
+        private TestSourceWatcher watcher;
         private MasterRepository repository;
 
         public TestMasterRepository()
@@ -38,18 +104,44 @@ namespace Icklewik.Core.Test
             deletedPages = new List<string>();
             movedPages = new List<string>();
 
+            watcher = new TestSourceWatcher();
             repository = new MasterRepository(".md");
 
             // setup event handlers
-            repository.DirectoryAdded += (source, args) => createdDirectories.Add(args.SourcePath);
-            repository.DirectoryUpdated += (source, args) => updatedDirectories.Add(args.SourcePath);
-            repository.DirectoryDeleted += (source, args) => deletedDirectories.Add(args.SourcePath);
+            repository.DirectoryAdded += (source, args) =>
+                {
+                    createdDirectories.Add(args.SourcePath);
+                };
+            repository.DirectoryUpdated += (source, args) =>
+                {
+                    updatedDirectories.Add(args.SourcePath);
+                };
+            repository.DirectoryDeleted += (source, args) =>
+                {
+                    deletedDirectories.Add(args.SourcePath);
+                };
             repository.DirectoryMoved += (source, args) => movedDirectories.Add(args.SourcePath);
 
-            repository.PageAdded += (source, args) => createdPages.Add(args.SourcePath);
-            repository.PageUpdated += (source, args) => updatedPages.Add(args.SourcePath);
-            repository.PageDeleted += (source, args) => deletedPages.Add(args.SourcePath);
-            repository.PageMoved += (source, args) => movedPages.Add(args.SourcePath);
+            repository.PageAdded += (source, args) =>
+            {
+                createdPages.Add(args.SourcePath);
+            };
+
+            repository.PageUpdated += (source, args) =>
+            {
+                updatedPages.Add(args.SourcePath);
+            };
+
+            repository.PageDeleted += (source, args) =>
+            {
+                deletedPages.Add(args.SourcePath);
+            };
+
+            repository.PageMoved += (source, args) => 
+            {
+                movedPages.Add(args.SourcePath);
+            };
+
 
             // create list of files
             IList<string> markdownFiles = new List<string>
@@ -59,7 +151,7 @@ namespace Icklewik.Core.Test
                 };
 
             // initialise the model (should fire events the same as addition)
-            repository.Init(".", Path.Combine(".", "somewikipath"), markdownFiles);
+            repository.Init(watcher, ".", Path.Combine(".", "somewikipath"), markdownFiles);
         }
 
         [Fact]
@@ -82,8 +174,11 @@ namespace Icklewik.Core.Test
             int createdDirectoryCount = createdDirectories.Count();
             int createdPagesCount = createdPages.Count();
 
-            repository.AddPage(Path.Combine(".", "subdir1", "index.md"));
-            repository.AddPage(Path.Combine(".", "firstFile.md"));
+            watcher.FireFileAdded(Path.Combine(".", "subdir1", "index.md"));
+            watcher.FireFileAdded(Path.Combine(".", "firstFile.md"));
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(10);
 
             // no more directories created
             Assert.Equal(createdDirectoryCount, createdDirectories.Count());
@@ -98,8 +193,11 @@ namespace Icklewik.Core.Test
             int updatedDirectoryCount = updatedDirectories.Count();
             int updatedPagesCount = updatedPages.Count();
 
-            repository.UpdatePage(Path.Combine(".", "subdir1", "subdir2", "index.md"));
-            repository.UpdatePage(Path.Combine(".", "index.md"));
+            watcher.FireFileUpdated(Path.Combine(".", "subdir1", "subdir2", "index.md"));
+            watcher.FireFileUpdated(Path.Combine(".", "index.md"));
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(10);
 
             // no more directories updated
             Assert.Equal(updatedDirectoryCount, updatedDirectories.Count());
@@ -114,7 +212,10 @@ namespace Icklewik.Core.Test
             int deletedDirectoryCount = deletedDirectories.Count();
             int deletedPagesCount = deletedPages.Count();
 
-            repository.DeletePage(Path.Combine(".", "index.md"));
+            watcher.FireFileDeleted(Path.Combine(".", "index.md"));
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(10);
 
             // no more directories deleted
             Assert.Equal(deletedDirectoryCount, deletedDirectories.Count());
@@ -129,7 +230,10 @@ namespace Icklewik.Core.Test
             int deletedDirectoryCount = deletedDirectories.Count();
             int deletedPagesCount = deletedPages.Count();
 
-            repository.DeletePage(Path.Combine(".", "subdir1", "subdir2", "index.md"));
+            watcher.FireFileDeleted(Path.Combine(".", "subdir1", "subdir2", "index.md"));
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(10);
 
             // 2 more directories deleted (subdir1 and subdir2)
             Assert.Equal(deletedDirectoryCount + 2, deletedDirectories.Count());
@@ -144,7 +248,13 @@ namespace Icklewik.Core.Test
             int movedDirectoryCount = movedDirectories.Count();
             int movedPageCount = movedPages.Count();
 
-            repository.RenamePage(Path.Combine(".", "index.md"), Path.Combine(".", "indexRenamed.md"));
+            string oldFilePath = Path.Combine(".", "index.md");
+            string newFilePath = Path.Combine(".", "indexRenamed.md");
+
+            watcher.FireFileMoved(newFilePath, oldFilePath);
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(10);
 
             // no more directories moved
             Assert.Equal(movedDirectoryCount, movedDirectories.Count());
@@ -174,8 +284,14 @@ namespace Icklewik.Core.Test
             Assert.Equal(createdPagesCount, createdPages.Count());
             Assert.Equal(deletedPagesCount, deletedPages.Count());
 
+            string oldFilePath = Path.Combine(".", "subdir1", "index.txt");
+            string newFilePath = Path.Combine(".", "subdir1", "index.md");
+
             // now rename the file
-            repository.RenamePage(Path.Combine(".", "subdir1", "index.txt"), Path.Combine(".", "subdir1", "index.md"));
+            watcher.FireFileMoved(newFilePath, oldFilePath);
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(10);
 
             // no more directories deleted or created
             Assert.Equal(createdDirectoryCount, createdDirectories.Count());
@@ -195,7 +311,10 @@ namespace Icklewik.Core.Test
             int deletedDirectoryCount = deletedDirectories.Count();
             int deletedPagesCount = deletedPages.Count();
 
-            repository.AddPage(Path.Combine(".", "subdir1", "index.md"));
+            watcher.FireFileAdded(Path.Combine(".", "subdir1", "index.md"));
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(10);
 
             // no more directories created
             Assert.Equal(createdDirectoryCount, createdDirectories.Count());
@@ -205,8 +324,14 @@ namespace Icklewik.Core.Test
             Assert.Equal(createdPagesCount + 1, createdPages.Count());
             Assert.Equal(deletedPagesCount, deletedPages.Count());
 
+            string oldFilePath = Path.Combine(".", "subdir1", "index.md");
+            string newFilePath = Path.Combine(".", "subdir1", "index.txt");
+
             // now rename the file
-            repository.RenamePage(Path.Combine(".", "subdir1", "index.md"), Path.Combine(".", "subdir1", "index.txt"));
+            watcher.FireFileMoved(newFilePath, oldFilePath);
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(10);
 
             // no more directories deleted or created
             Assert.Equal(createdDirectoryCount, createdDirectories.Count());
@@ -223,7 +348,10 @@ namespace Icklewik.Core.Test
             int createdDirectoryCount = createdDirectories.Count();
             int createdPagesCount = createdPages.Count();
 
-            repository.AddDirectory(Path.Combine(".", "subdir1", "subdir2", "subdir3"));
+            watcher.FireDirectoryAdded(Path.Combine(".", "subdir1", "subdir2", "subdir3"));
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(10);
 
             // no more directories created
             Assert.Equal(createdDirectoryCount, createdDirectories.Count());
@@ -238,7 +366,10 @@ namespace Icklewik.Core.Test
             int createdDirectoryCount = createdDirectories.Count();
             int createdPagesCount = createdPages.Count();
 
-            repository.AddPage(Path.Combine(".", "subdir1", "subdir2", "subdir3", "myfile.md"));
+            watcher.FireFileAdded(Path.Combine(".", "subdir1", "subdir2", "subdir3", "myfile.md"));
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(10);
 
             // 1 more directories created
             Assert.Equal(createdDirectoryCount + 1, createdDirectories.Count());
@@ -253,7 +384,10 @@ namespace Icklewik.Core.Test
             int updatedDirectoriesCount = updatedDirectories.Count();
             int updatedPagesCount = updatedPages.Count();
 
-            repository.UpdateDirectory(Path.Combine(".", "subdir1", "subdir2"));
+            watcher.FireDirectoryUpdated(Path.Combine(".", "subdir1", "subdir2"));
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(10);
 
             // no more directories updated
             Assert.Equal(updatedDirectoriesCount + 1, updatedDirectories.Count());
@@ -270,7 +404,10 @@ namespace Icklewik.Core.Test
 
             // note: because a file watcher may or may not trigger a "deletepage" event
             // the delete directory event should recursively delete all contents of a deleted directory
-            repository.DeleteDirectory(Path.Combine(".", "subdir1", "subdir2"));
+            watcher.FireDirectoryDeleted(Path.Combine(".", "subdir1", "subdir2"));
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(10);
 
             // 2 more directories updated (subdir1 and subdir2)
             Assert.Equal(deletedDirectoriesCount + 2, deletedDirectories.Count());
@@ -285,7 +422,13 @@ namespace Icklewik.Core.Test
             int movedDirectoryCount = movedDirectories.Count();
             int movedPagesCount = movedPages.Count();
 
-            repository.RenameDirectory(Path.Combine(".", "subdir1", "subdir2"), Path.Combine(".", "subdir1", "subdirSecond"));
+            string oldPath = Path.Combine(".", "subdir1", "subdir2");
+            string newPath = Path.Combine(".", "subdir1", "subdirSecond");
+
+            watcher.FireDirectoryMoved(newPath, oldPath);
+
+            // make sure the event gets a chance to be noticed
+            System.Threading.Thread.Sleep(100);
 
             // 1 more directories moved
             Assert.Equal(movedDirectoryCount + 1, movedDirectories.Count());

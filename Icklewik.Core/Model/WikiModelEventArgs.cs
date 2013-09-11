@@ -16,16 +16,19 @@ namespace Icklewik.Core.Model
             string wikiPath,
             string wikiUrl,
             string oldSourcePath,
-            string oldWikiPath)
+            string oldWikiPath,
+            string oldWikiUrl)
         {
             SourcePath = sourcePath;
             WikiPath = wikiPath;
             WikiUrl = wikiUrl;
             OldSourcePath = oldSourcePath;
             OldWikiPath = oldWikiPath;
+            OldWikiUrl = oldWikiUrl;
 
             debugCount = DebugCounter++;
         }
+
         // relative path to source file
         public string SourcePath { get; private set; }
 
@@ -40,6 +43,9 @@ namespace Icklewik.Core.Model
 
         // used for "move" events only
         public string OldWikiPath { get; private set; }
+
+        // used for "move" events only
+        public string OldWikiUrl { get; private set; }
 
         public override string Id
         {

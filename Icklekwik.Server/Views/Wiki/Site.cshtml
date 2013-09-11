@@ -1,4 +1,7 @@
-﻿@model Icklekwik.Server.ViewModels.Wiki.SiteModel
+﻿@using Icklewik.Core.Model
+
+@model Icklekwik.Server.ViewModels.Wiki.SiteModel
+
 
 ﻿@if (!Model.IsPartialView)
  {
@@ -8,8 +11,8 @@
 <h1>Hello SITE!</h1>
 
 <ul>
-@foreach (var pair in Model.SiteMap)
+@foreach (ImmutableWikiEntry wikiEntry in Model.SiteMap)
 {
-    <li>@pair.Item1 - @pair.Item2</li>
+    <li><a href="@wikiEntry.WikiUrl">@wikiEntry.WikiPath</a></li>
 }
 </ul>

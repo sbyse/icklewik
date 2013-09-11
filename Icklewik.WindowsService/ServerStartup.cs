@@ -2,12 +2,14 @@
 using System.Collections.Generic;
 using System.Reactive.Concurrency;
 using System.Threading;
+using Icklekwik.Core.Cache;
 using Icklekwik.Server;
 using Icklewik.Core;
 using Icklewik.Core.Model;
 using Icklewik.Core.Site;
 using Microsoft.AspNet.SignalR.Hosting.Self;
 using Nancy.Hosting.Self;
+using Icklewik.Core.Source;
 
 namespace Icklewik.WindowsService
 {
@@ -33,30 +35,29 @@ namespace Icklewik.WindowsService
 
             foreach (var wikiConfig in config.AllConfig)
             {
-                // create site
-                var site = new WikiSite(wikiConfig);
-
-                // subscribe to all the sites events for notification purposes
-                EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "PageAdded", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
-                EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "PageUpdated", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
-                EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "PageDeleted", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
-                EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "PageMoved", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
-                EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "DirectoryAdded", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
-                EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "DirectoryUpdated", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
-                EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "DirectoryDeleted", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
-                EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "DirectoryMoved", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
-
-                // store
-                sites[wikiConfig.SiteName] = site;
-
-                // make sure the slave repository keeps in sync
-
-                // update the site's copy of the model
-                SlaveRepository slaveRepository;
-                if (serverConfig.TryGetRepository(wikiConfig.SiteName, out slaveRepository))
+                // get the relevant repositories
+                MasterRepository masterRepository;
+                IPageCache pageCache;
+                if (serverConfig.TryGetMasterRepository(wikiConfig.SiteName, out masterRepository) &&
+                    serverConfig.TryGetPageCache(wikiConfig.SiteName, out pageCache))
                 {
-                    // the slave repository is currently updated by a thread from the pool
-                    site.RegisterSlaveRepository(slaveRepository, modelSyncScheduler);
+                    var sourceWatcher = new SourceWatcher(wikiConfig.RootSourcePath, wikiConfig.Convertor.FileSearchString);
+
+                    // create site
+                    var site = new WikiSite(wikiConfig, masterRepository, sourceWatcher, pageCache);
+
+                    // subscribe to all the sites events for notification purposes
+                    EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "PageAdded", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
+                    EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "PageUpdated", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
+                    EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "PageDeleted", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
+                    EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "PageMoved", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
+                    EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "DirectoryAdded", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
+                    EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "DirectoryUpdated", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
+                    EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "DirectoryDeleted", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
+                    EventHelper.SubscribeToWikiEvent<WikiSiteEventArgs>(site, "DirectoryMoved", notificationScheduler, (args) => HandleEvent(site.Name, args.WikiUrl));
+
+                    // store
+                    sites[wikiConfig.SiteName] = site;
                 }
             }
 

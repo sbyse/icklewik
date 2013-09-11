@@ -1,38 +1,50 @@
 ﻿using System;
 using System.IO;
+using Icklekwik.Core.Cache;
 using Icklewik.Core;
+using Icklewik.Core.Model;
 using Icklewik.Core.Site;
+using Icklewik.Core.Source;
+using System.Threading;
 
 namespace Icklewik.ConsoleApp
 {
     class Program
     {
+        static AutoResetEvent waitHandle = new AutoResetEvent(false);
+
         static void Main(string[] args)
         {
-            File.WriteAllText("./index.md", "Hello World");
+            string scanDirectory = Path.GetFullPath(args[0]);
+            string outputDirectory = Path.GetFullPath(args[1]);
 
-            Directory.CreateDirectory(Path.Combine(".", "subdir"));
-
-            WikiSite site = new WikiSite(new WikiConfig()
+            Convertor convertor = new Convertor(new MarkdownSharpDialogue());
+            WikiSite site = new WikiSite(
+                new WikiConfig()
                 {
                     SiteName = "Tester",
-                    RootSourcePath = ".", 
-                    RootWikiPath = Path.Combine(".", "wiki"),
+                    RootSourcePath = scanDirectory,
+                    RootWikiPath = outputDirectory,
                     Convertor = new Convertor(new MarkdownSharpDialogue())
-                });
+                }, 
+                new MasterRepository(convertor.FileExtension),
+                new NullSourceWatcher(),
+                new PageCache());
 
-            // add another page
-            File.WriteAllText("./firstFile.md", "Hello Again");
+            site.InitialisationComplete += site_InitialisationComplete;
 
-            // and another
-            File.WriteAllText(Path.Combine(".", "subdir", "index.md"), "Hello World Sub Directory");
+            site.Start();
 
-            // then delete one
-            File.Delete("./index.md");
+            waitHandle.WaitOne();
 
-            System.Threading.Thread.Sleep(1000000);
+            site.Dispose();
 
             Console.Write("Done");
+        }
+
+        static void site_InitialisationComplete(object sender, EventArgs e)
+        {
+            waitHandle.Set();
         }
     }
 }

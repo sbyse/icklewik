@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.AspNet.SignalR.Hubs;
 
-namespace Icklekwik.Server
+namespace Icklewik.Core.Logging
 {
-    public class WikiHub : Hub
+    public interface ILogger
     {
+        void Log(string message);
     }
 }

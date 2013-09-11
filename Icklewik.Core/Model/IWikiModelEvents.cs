@@ -5,9 +5,9 @@ using System.Text;
 
 namespace Icklewik.Core.Model
 {
-    public interface IWikiModelEventSource
+    public interface IWikiModelEvents
     {
-        event Action<object, EventSourceInitialisedArgs> EventSourceStarted;
+        event Action<object, EventSourceInitialisedArgs> EventSourceInitialised;
 
         event Action<object, WikiModelEventArgs> PageAdded;
         event Action<object, WikiModelEventArgs> PageUpdated;

@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using Icklewik.Core.Model;
 using Icklewik.Core.Site;
 using Xunit;
+using Icklekwik.Core.Cache;
+using Icklewik.Core.Source;
 
 namespace Icklewik.Core.Test
 {
@@ -29,9 +32,9 @@ namespace Icklewik.Core.Test
             Directory.CreateDirectory(Path.Combine(".", "subdir1", "subdir2"));
             Directory.CreateDirectory(Path.Combine(".", "subdir1", "subdir2", "subdir3"));
             Directory.CreateDirectory(Path.Combine(".", "subdir1", "subdir2", "subdir3", "subdir4"));
-            File.AppendAllText(Path.Combine(".", "index.md"), "Hello World");
-            File.AppendAllText(Path.Combine(".", "subdir1", "index.md"), "Hello World Sub Directory");
-            File.AppendAllText(Path.Combine(".", "subdir1", "subdir2", "index.md"), "Hello World Sub Sub Directory");
+            System.IO.File.AppendAllText(Path.Combine(".", "index.md"), "Hello World");
+            System.IO.File.AppendAllText(Path.Combine(".", "subdir1", "index.md"), "Hello World Sub Directory");
+            System.IO.File.AppendAllText(Path.Combine(".", "subdir1", "subdir2", "index.md"), "Hello World Sub Sub Directory");
 
             createdDirectories = new List<string>();
             updatedDirectories = new List<string>();
@@ -43,13 +46,20 @@ namespace Icklewik.Core.Test
             deletedPages = new List<string>();
             movedPages = new List<string>();
 
-            site = new WikiSite(new WikiConfig()
-            {
-                SiteName = "Tester",
-                RootSourcePath = PathHelper.GetFullPath("."),
-                RootWikiPath = PathHelper.GetFullPath(".", "wiki"),
-                Convertor = new Convertor(new MarkdownSharpDialogue())
-            });
+            Convertor convertor = new Convertor(new MarkdownSharpDialogue());
+            WikiConfig wikiConfig = new WikiConfig()
+                {
+                    SiteName = "Tester",
+                    RootSourcePath = PathHelper.GetFullPath("."),
+                    RootWikiPath = PathHelper.GetFullPath(".", "wiki"),
+                    Convertor = new Convertor(new MarkdownSharpDialogue())
+                };
+
+            site = new WikiSite(wikiConfig, 
+                new MasterRepository(convertor.FileExtension),
+                new SourceWatcher(wikiConfig.RootSourcePath, wikiConfig.Convertor.FileSearchString),
+                new PageCache()
+            );
 
             // setup event handlers
             site.DirectoryAdded += (source, args) => createdDirectories.Add(args.WikiUrl);
@@ -76,7 +86,7 @@ namespace Icklewik.Core.Test
 
             foreach (string filePath in Directory.EnumerateFiles(".", "*.md", SearchOption.TopDirectoryOnly))
             {
-                File.Delete(filePath);
+                System.IO.File.Delete(filePath);
             }
         }
 
@@ -88,9 +98,9 @@ namespace Icklewik.Core.Test
             Assert.True(Directory.Exists(Path.Combine(".", "wiki", "subdir1")));
             Assert.True(Directory.Exists(Path.Combine(".", "wiki", "subdir1", "subdir2")));
 
-            Assert.True(File.Exists(Path.Combine(".", "wiki", "index.html")));
-            Assert.True(File.Exists(Path.Combine(".", "wiki", "subdir1", "index.html")));
-            Assert.True(File.Exists(Path.Combine(".", "wiki", "subdir1", "subdir2", "index.html")));
+            Assert.True(System.IO.File.Exists(Path.Combine(".", "wiki", "index.html")));
+            Assert.True(System.IO.File.Exists(Path.Combine(".", "wiki", "subdir1", "index.html")));
+            Assert.True(System.IO.File.Exists(Path.Combine(".", "wiki", "subdir1", "subdir2", "index.html")));
 
             // empty directories have not been added
             Assert.False(Directory.Exists(Path.Combine(".", "wiki", "subdir1", "subdir2", "subdir3")));
@@ -113,13 +123,13 @@ namespace Icklewik.Core.Test
             int createdDirectoryCount = createdDirectories.Count();
             int createdPagesCount = createdPages.Count();
 
-            File.AppendAllText(Path.Combine(".", "firstFile.md"), "Hello Again");
-            File.AppendAllText(Path.Combine(".", "subdir1", "subdir2", "subdir3", "subdir4", "index.md"), "Index in subdir 4");
+            System.IO.File.AppendAllText(Path.Combine(".", "firstFile.md"), "Hello Again");
+            System.IO.File.AppendAllText(Path.Combine(".", "subdir1", "subdir2", "subdir3", "subdir4", "index.md"), "Index in subdir 4");
 
             System.Threading.Thread.Sleep(250);
 
-            Assert.True(File.Exists(Path.Combine(".", "wiki", "firstFile.html")));
-            Assert.True(File.Exists(Path.Combine(".", "wiki", "subdir1", "subdir2", "subdir3", "subdir4", "index.html")));
+            Assert.True(System.IO.File.Exists(Path.Combine(".", "wiki", "firstFile.html")));
+            Assert.True(System.IO.File.Exists(Path.Combine(".", "wiki", "subdir1", "subdir2", "subdir3", "subdir4", "index.html")));
 
             // 2 more directories created
             Assert.Equal(createdDirectoryCount + 2, createdDirectories.Count());
@@ -134,11 +144,11 @@ namespace Icklewik.Core.Test
             int deletedPagesCount = deletedPages.Count();
             int deletedDirectoriesCount = deletedDirectories.Count();
 
-            File.Delete(Path.Combine(".", "index.md"));
+            System.IO.File.Delete(Path.Combine(".", "index.md"));
 
-            System.Threading.Thread.Sleep(250);
+            System.Threading.Thread.Sleep(1000);
 
-            Assert.False(File.Exists(Path.Combine(".", "wiki", "index.html")));
+            Assert.False(System.IO.File.Exists(Path.Combine(".", "wiki", "index.html")));
 
             // no more directories deleted
             Assert.Equal(deletedDirectoriesCount, deletedDirectories.Count());
@@ -154,25 +164,25 @@ namespace Icklewik.Core.Test
             int deletedDirectoriesCount = deletedDirectories.Count();
 
             // first add something at the bottom of the tree
-            File.AppendAllText(Path.Combine(".", "subdir1", "subdir2", "subdir3", "subdir4", "index.md"), "Index in subdir 4");
+            System.IO.File.AppendAllText(Path.Combine(".", "subdir1", "subdir2", "subdir3", "subdir4", "index.md"), "Index in subdir 4");
 
-            System.Threading.Thread.Sleep(250);
+            System.Threading.Thread.Sleep(500);
 
             // and make sure its been added
-            Assert.True(File.Exists(Path.Combine(".", "wiki", "subdir1", "subdir2", "subdir3", "subdir4", "index.html")));
+            Assert.True(System.IO.File.Exists(Path.Combine(".", "wiki", "subdir1", "subdir2", "subdir3", "subdir4", "index.html")));
 
             // then delete a directory in the middle
             Directory.Delete(Path.Combine(".", "subdir1", "subdir2"), true);
 
-            System.Threading.Thread.Sleep(250);
+            System.Threading.Thread.Sleep(2000);
 
-            Assert.False(File.Exists(Path.Combine(".", "wiki", "subdir1", "subdir2", "index.html")));
+            Assert.False(System.IO.File.Exists(Path.Combine(".", "wiki", "subdir1", "subdir2", "index.html")));
             Assert.False(Directory.Exists(Path.Combine(".", "wiki", "subdir1", "subdir2")));
 
             // 3 more directories deleted
             Assert.Equal(deletedDirectoriesCount + 3, deletedDirectories.Count());
 
-            // 2 more page created
+            // 2 more page deleted
             Assert.Equal(deletedPagesCount + 2, deletedPages.Count());
         }
 
@@ -184,20 +194,20 @@ namespace Icklewik.Core.Test
 
             // note: This wouldn't be called because the file watcher would never add this file!
             // removing this line means the following is a valid test
-            File.AppendAllText(Path.Combine(".", "subdir1", "hello.txt"), "Hello Again");
+            System.IO.File.AppendAllText(Path.Combine(".", "subdir1", "hello.txt"), "Hello Again");
 
             System.Threading.Thread.Sleep(250);
 
             // no file created
-            Assert.False(File.Exists(Path.Combine(".", "wiki", "subdir1", "hello.txt")));
-            Assert.False(File.Exists(Path.Combine(".", "wiki", "subdir1", "hello.html")));
+            Assert.False(System.IO.File.Exists(Path.Combine(".", "wiki", "subdir1", "hello.txt")));
+            Assert.False(System.IO.File.Exists(Path.Combine(".", "wiki", "subdir1", "hello.html")));
 
             // now rename the file
-            File.Move(Path.Combine(".", "subdir1", "hello.txt"), Path.Combine(".", "subdir1", "hello.md"));
+            System.IO.File.Move(Path.Combine(".", "subdir1", "hello.txt"), Path.Combine(".", "subdir1", "hello.md"));
 
             System.Threading.Thread.Sleep(250);
 
-            Assert.True(File.Exists(Path.Combine(".", "wiki", "subdir1", "hello.html")));
+            Assert.True(System.IO.File.Exists(Path.Combine(".", "wiki", "subdir1", "hello.html")));
 
             // no more directories created
             Assert.Equal(createdDirectoryCount, createdDirectories.Count());
@@ -213,19 +223,19 @@ namespace Icklewik.Core.Test
             int deletedPagesCount = deletedPages.Count();
             int deletedDirectoriesCount = deletedDirectories.Count();
 
-            File.AppendAllText(Path.Combine(".", "subdir1", "hello.md"), "Hello Again");
+            System.IO.File.AppendAllText(Path.Combine(".", "subdir1", "hello.md"), "Hello Again");
 
             System.Threading.Thread.Sleep(250);
 
             // no file created
-            Assert.True(File.Exists(Path.Combine(".", "wiki", "subdir1", "hello.html")));
+            Assert.True(System.IO.File.Exists(Path.Combine(".", "wiki", "subdir1", "hello.html")));
 
             // now rename the file
-            File.Move(Path.Combine(".", "subdir1", "hello.md"), Path.Combine(".", "subdir1", "hello.txt"));
+            System.IO.File.Move(Path.Combine(".", "subdir1", "hello.md"), Path.Combine(".", "subdir1", "hello.txt"));
 
             System.Threading.Thread.Sleep(250);
 
-            Assert.False(File.Exists(Path.Combine(".", "wiki", "subdir1", "hello.html")));
+            Assert.False(System.IO.File.Exists(Path.Combine(".", "wiki", "subdir1", "hello.html")));
 
             // no more directories deleted
             Assert.Equal(deletedDirectoriesCount, deletedDirectories.Count());

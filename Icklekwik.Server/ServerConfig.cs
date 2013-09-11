@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Icklekwik.Core.Cache;
 using Icklewik.Core;
 using Icklewik.Core.Model;
 
@@ -18,14 +19,14 @@ namespace Icklekwik.Server
         // but the model will be updated continously and needs to be read by multiple threads - we need to
         // implement a proper thread safe way of reading the model details. Or else use some sort of caching layer
         // here that has threadsafety built in
-        private ConcurrentDictionary<string, Tuple<WikiConfig, SlaveRepository>> configMap;
+        private ConcurrentDictionary<string, Tuple<WikiConfig, MasterRepository, IPageCache>> configMap;
 
-        public ServerConfig(IEnumerable<WikiConfig> config)
+        public ServerConfig(IEnumerable<Tuple<WikiConfig, IPageCache>> config)
         {
-            configMap = new ConcurrentDictionary<string, Tuple<WikiConfig, SlaveRepository>>(
+            configMap = new ConcurrentDictionary<string, Tuple<WikiConfig, MasterRepository, IPageCache>>(
                 config.ToDictionary(
-                    c => CreateSafeName(c.SiteName),
-                    c => new Tuple<WikiConfig, SlaveRepository>(c, new SlaveRepository(c.Convertor.FileExtension))));
+                    c => CreateSafeName(c.Item1.SiteName),
+                    c => new Tuple<WikiConfig, MasterRepository, IPageCache>(c.Item1, new MasterRepository(c.Item1.Convertor.FileExtension), c.Item2)));
         }
 
         public IEnumerable<WikiConfig> AllConfig
@@ -40,7 +41,7 @@ namespace Icklekwik.Server
         {
             string safeName = CreateSafeName(siteName);
 
-            Tuple<WikiConfig, SlaveRepository> tuple;
+            Tuple<WikiConfig, MasterRepository, IPageCache> tuple;
             if (configMap.TryGetValue(siteName, out tuple))
             {
                 value = tuple.Item1;
@@ -53,14 +54,31 @@ namespace Icklekwik.Server
             }
         }
 
-        public bool TryGetRepository(string siteName, out SlaveRepository value)
+        public bool TryGetMasterRepository(string siteName, out MasterRepository value)
         {
             string safeName = CreateSafeName(siteName);
 
-            Tuple<WikiConfig, SlaveRepository> tuple;
+            Tuple<WikiConfig, MasterRepository, IPageCache> tuple;
             if (configMap.TryGetValue(siteName, out tuple))
             {
                 value = tuple.Item2;
+                return true;
+            }
+            else
+            {
+                value = null;
+                return false;
+            }
+        }
+
+        public bool TryGetPageCache(string siteName, out IPageCache value)
+        {
+            string safeName = CreateSafeName(siteName);
+
+            Tuple<WikiConfig, MasterRepository, IPageCache> tuple;
+            if (configMap.TryGetValue(siteName, out tuple))
+            {
+                value = tuple.Item3;
                 return true;
             }
             else

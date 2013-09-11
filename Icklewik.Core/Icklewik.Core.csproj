@@ -10,9 +10,10 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Icklewik.Core</RootNamespace>
     <AssemblyName>Icklewik.Core</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <TargetFrameworkProfile>Client</TargetFrameworkProfile>
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,6 +23,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -30,6 +32,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="MarkdownSharp">
@@ -56,21 +59,32 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Cache\IPageCache.cs" />
+    <Compile Include="Cache\PageCache.cs" />
     <Compile Include="EventHelper.cs" />
-    <Compile Include="EventSourceInitialisedArgs.cs" />
+    <Compile Include="Model\EventSourceArgs.cs" />
+    <Compile Include="File\FileReader.cs" />
     <Compile Include="IContentFilter.cs" />
     <Compile Include="Convertor.cs" />
+    <Compile Include="Logging\ConsoleLogger.cs" />
+    <Compile Include="Logging\ILogger.cs" />
+    <Compile Include="Logging\Log.cs" />
+    <Compile Include="Model\AsyncRepository.cs" />
     <Compile Include="Model\DeleteVisitor.cs" />
     <Compile Include="Model\IWikiEntryVisitor.cs" />
     <Compile Include="MarkdownSharpDialogue.cs" />
-    <Compile Include="Model\IWikiModelEventSource.cs" />
+    <Compile Include="Model\IWikiModelEvents.cs" />
     <Compile Include="Model\MasterRepository.cs" />
-    <Compile Include="Model\SlaveRepository.cs" />
     <Compile Include="Model\RenameVisitor.cs" />
     <Compile Include="Model\WikiModelEventArgs.cs" />
     <Compile Include="PathHelper.cs" />
-    <Compile Include="Site\IWikiSiteEventSource.cs" />
+    <Compile Include="Site\IWikiSiteEvents.cs" />
     <Compile Include="Site\WikiSiteEventArgs.cs" />
+    <Compile Include="Source\ISourceWatcher.cs" />
+    <Compile Include="Source\IWikiSourceEvents.cs" />
+    <Compile Include="Source\NullSourceWatcher.cs" />
+    <Compile Include="Source\SourceWatcher.cs" />
+    <Compile Include="Source\WikiSourceEventArgs.cs" />
     <Compile Include="WikiConfig.cs" />
     <Compile Include="Model\WikiDirectory.cs" />
     <Compile Include="IDialogue.cs" />

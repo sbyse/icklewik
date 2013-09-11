@@ -5,21 +5,27 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using Icklekwik.Core.Cache;
+using Icklewik.Core.File;
 
 namespace Icklewik.Core.Site
 {
     /// <summary>
-    /// 
+    /// Updates the wiki site based on source files
     /// </summary>
-    public class WikiGenerator : IWikiSiteEventSource
+    public class WikiGenerator : IWikiSiteEvents
     {
         private Convertor convertor;
         private string rootWikiPath;
+        private IPageCache pageCache;
+        private FileReader fileReader;
 
-        public WikiGenerator(Convertor sourceConvertor, string rootPath)
+        public WikiGenerator(Convertor sourceConvertor, string rootPath, IPageCache pageCache)
         {
-            convertor = sourceConvertor;
-            rootWikiPath = rootPath;
+            this.convertor = sourceConvertor;
+            this.rootWikiPath = rootPath;
+            this.pageCache = pageCache;
+            this.fileReader = new FileReader(FileReaderPolicy.LimitedBlock, 500);
         }
 
         public event Action<object, WikiSiteEventArgs> PageAdded;
@@ -60,74 +66,74 @@ namespace Icklewik.Core.Site
             FireEvent(DirectoryMoved, wikiPath, oldPath);
         }
 
-        public void CreatePage(string wikiPath, string sourcePath)
+        public void CreatePage(string wikiPath, string sourcePath, string wikiUrl)
         {
-            CreateOrUpdatePage(PageAdded, wikiPath, sourcePath);
+            CreateOrUpdatePage(PageAdded, wikiPath, sourcePath, wikiUrl);
         }
 
-        public void UpdatePage(string wikiPath, string sourcePath)
+        public void UpdatePage(string wikiPath, string sourcePath, string wikiUrl)
         {
-            CreateOrUpdatePage(PageUpdated, wikiPath, sourcePath);
+            CreateOrUpdatePage(PageUpdated, wikiPath, sourcePath, wikiUrl);
         }
 
-        private void CreateOrUpdatePage(Action<object, WikiSiteEventArgs> eventToFire, string wikiPath, string sourcePath)
+        private async void CreateOrUpdatePage(Action<object, WikiSiteEventArgs> eventToFire, string wikiPath, string sourcePath, string wikiUrl)
         {
-            // any recently updated file will likely still be locked by the other
-            // process. This will throw an exception. The recommended solution appears to be to
-            // wait a short period of time and try again
-            bool fileBusy = true;
-            bool fileExists = true;
-            string pageText = "";
-            while (fileExists && fileBusy)
+            var result = await fileReader.TryReadFile(sourcePath);
+            if (result.Item1)
             {
-                try
-                {
-                    pageText = File.ReadAllText(sourcePath);
-                    fileBusy = false;
-                }
-                catch (FileNotFoundException)
-                {
-                    // the file doesn't exist, presumably it has been deleted but we
-                    // haven't processed the delete event yet
-                    fileExists = false;
-                }
-                catch (IOException ex)
-                {
-                    // file busy, this is quite likely to happen when a file has just been updated,
-                    // try again
-                    Console.WriteLine("IOException: " + ex.Message);
-                }
-            }
-
-            if (fileExists)
-            {
-                // actually parse the markdown
-                string convertedHtml = convertor.Convert(pageText);
-
-                // and write to the wiki location (write directory tree first if required)
-                CreateDirectoryAndParents(Directory.GetParent(wikiPath).FullName);
-
-                File.WriteAllText(wikiPath, convertedHtml, Encoding.UTF8);
-
+                ConvertAndWritePage(wikiPath, wikiUrl, result.Item2);
                 FireEvent(eventToFire, wikiPath);
             }
         }
 
-        public void DeletePage(string wikiPath)
+        private void ConvertAndWritePage(string wikiPath, string wikiUrl, string pageText)
         {
-            if (File.Exists(wikiPath))
+            // actually parse the markdown
+            string convertedHtml = convertor.Convert(pageText);
+
+            // and write to the wiki location (write directory tree first if required)
+            CreateDirectoryAndParents(Directory.GetParent(wikiPath).FullName);
+
+            // write to the cache
+            pageCache.CachePageContents(wikiUrl, convertedHtml);
+
+            // write to file
+            System.IO.File.WriteAllText(wikiPath, convertedHtml, Encoding.UTF8);
+        }
+
+        public void DeletePage(string wikiPath, string wikiUrl)
+        {
+            if (System.IO.File.Exists(wikiPath))
             {
-                File.Delete(wikiPath);
+                System.IO.File.Delete(wikiPath);
+
+                pageCache.DeleteFromCache(wikiUrl);
 
                 FireEvent(PageDeleted, wikiPath);
             }
         }
 
-        public void MovePage(string oldPath, string wikiPath)
+        public async void MovePage(string oldWikiPath, string newWikiPath, string oldWikiUrl, string newWikiUrl)
         {
-            File.Move(oldPath, wikiPath);
+            System.IO.File.Move(oldWikiPath, newWikiPath);
 
-            FireEvent(PageMoved, wikiPath, oldPath);
+            string contents;
+            if (pageCache.TryGetContents(oldWikiUrl, out contents))
+            {
+                pageCache.DeleteFromCache(oldWikiUrl);
+                pageCache.CachePageContents(newWikiUrl, contents);
+            }
+            else
+            {
+                var result = await fileReader.TryReadFile(newWikiPath);
+
+                if (result.Item1)
+                {
+                    ConvertAndWritePage(newWikiPath, newWikiUrl, result.Item2);
+                }
+            }
+
+            FireEvent(PageMoved, newWikiPath, oldWikiPath);
         }
 
         private void CreateDirectoryAndParents(string wikiPath)

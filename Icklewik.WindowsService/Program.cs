@@ -5,6 +5,7 @@ using System.Configuration.Install;
 using System.IO;
 using System.ServiceProcess;
 using System.Threading;
+using Icklekwik.Core.Cache;
 using Icklekwik.Server;
 using Icklewik.Core;
 using Icklewik.Filters;
@@ -128,15 +129,18 @@ namespace Icklewik.WindowsService
 
             // reference the bootstrapper (and turn on diagnostics)
             ServerConfig serverConfig = new ServerConfig(
-                new List<WikiConfig>() 
+                new List<Tuple<WikiConfig, IPageCache>>() 
                 { 
-                    new WikiConfig()
-                    {
-                        SiteName = "Tester",
-                        RootSourcePath = PathHelper.GetFullPath(coreDirectory),
-                        RootWikiPath = PathHelper.GetFullPath(coreDirectory, "wiki"),
-                        Convertor = new Convertor(new MarkdownSharpDialogue())
-                    } 
+                    new Tuple<WikiConfig, IPageCache>(
+                        new WikiConfig()
+                        {
+                            SiteName = "Tester",
+                            RootSourcePath = PathHelper.GetFullPath(coreDirectory),
+                            RootWikiPath = PathHelper.GetFullPath(coreDirectory, "wiki"),
+                            Convertor = new Convertor(new MarkdownSharpDialogue())
+                        },
+                        new PageCache()
+                    )
                 });
 
             // add filters

@@ -10,10 +10,10 @@ namespace Icklewik.Core.Model
         private string oldPath;
         private string renamedPath;
 
-        private Action<string, string, WikiPage> pageRenameAction;
-        private Action<string, string, WikiDirectory> directoryRenameAction;
+        private Action<string, string, string, WikiPage> pageRenameAction;
+        private Action<string, string, string, WikiDirectory> directoryRenameAction;
 
-        public RenameVisitor(string oldPath, string renamedPath, Action<string, string, WikiPage> pageRename, Action<string, string, WikiDirectory> directoryRename = null)
+        public RenameVisitor(string oldPath, string renamedPath, Action<string, string, string, WikiPage> pageRename, Action<string, string, string, WikiDirectory> directoryRename = null)
         {
             this.oldPath = oldPath;
             this.renamedPath = renamedPath;
@@ -26,6 +26,7 @@ namespace Icklewik.Core.Model
         {
             string oldSourcePath = directory.SourcePath;
             string oldWikiPath = directory.WikiPath;
+            string oldWikiUrl = directory.WikiUrl;
 
             CommonVisit(directory);
 
@@ -36,7 +37,7 @@ namespace Icklewik.Core.Model
 
             if (directoryRenameAction != null)
             {
-                directoryRenameAction(oldSourcePath, oldWikiPath, directory);
+                directoryRenameAction(oldSourcePath, oldWikiPath, oldWikiUrl, directory);
             }
         }
 
@@ -44,12 +45,13 @@ namespace Icklewik.Core.Model
         {
             string oldSourcePath = page.SourcePath;
             string oldWikiPath = page.WikiPath;
+            string oldWikiUrl = page.WikiUrl;
 
             CommonVisit(page);
 
             if (pageRenameAction != null)
             {
-                pageRenameAction(oldSourcePath, oldWikiPath, page);
+                pageRenameAction(oldSourcePath, oldWikiPath, oldWikiUrl, page);
             }
         }
 
